@@ -73,12 +73,6 @@ func main(){
         log.Panic(errs)
     } 
 
-    errs = godif.Start()
-    if len(errs) != 0{
-        log.Panic(errs)
-    } 
-    defer godif.Stop()
-
     // Do something
     consumer.F1(1, 2)
     consumer.F2("Hello")
