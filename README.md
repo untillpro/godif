@@ -4,23 +4,28 @@ Inject functions
 
 # Usage
 
-## 1. Declare functions
+## 1. Declare Functions
 
 ```go
 package decl
 
-type func1 func(x int, y int)
-type func2 func(s string)
+// Declare function types explicitly, otherwise functions are matched by signature
+type Func1Type func(x int, y int)
+type Func2Type func(s string)
+
+var Func1 Func1Type
+var Func2 Func2Type
+
 ```
 
-## 2. Implement functions
+## 2. Provide Functions
 
 ```go
-package implementor
+package prov
 
 func Declare() {
-    godif.Provide((decl.func1)(nil), MyFunc1)
-    godif.Provide((decl.func2)(nil), MyFunc2)
+    godif.Provide(decl.func1, MyFunc1)
+    godif.Provide(decl.func2, MyFunc2)
 }
 
 func MyFunc1(x int, y int) {
@@ -36,14 +41,11 @@ func MyFunc2(s string) {
 ## 3. Require Functions
 
 ```go
-package consumer
-
-var F1 decl.Func1
-var F2 decl.Func2
+package req
 
 func Declare() {
-    godif.Require(&f1)
-    godif.Require(&f2)
+    godif.Require(&decl.Func1)
+    godif.Require(&decl.Func2)
 }
 ```
 
@@ -54,8 +56,8 @@ func Declare() {
 package main
 
 func main(){
-    implementor.Declare()
-    consumer.Declare()
+    prov.Declare()
+    req.Declare()
 
     errs := godif.ResolveAll()
     if len(errs) != 0{
@@ -66,6 +68,7 @@ func main(){
     }
 
     // All implementors of godif.InitFunc will be called
+    // Dependency defines the order of init
     errs = godif.Init()
     defer godif.Finit()
 
@@ -74,13 +77,12 @@ func main(){
     } 
 
     // Do something
-    consumer.F1(1, 2)
-    consumer.F2("Hello")
+    declare.Func1(1, 2)
+    declare.Func2("Hello")
 
 }
 
 ```
-
 # Under the Hood
 
 - All registration functions works with default instance of `godif.ContainerDeclaration`
