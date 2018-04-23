@@ -1,6 +1,6 @@
 # godif
 
-Inject functions
+Inject Functions
 
 # Usage
 
@@ -15,7 +15,6 @@ type Func2Type func(s string)
 
 var Func1 Func1Type
 var Func2 Func2Type
-
 ```
 
 ## 2. Provide Functions
