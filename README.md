@@ -50,7 +50,6 @@ func Declare() {
 
 ## 4. Build App
 
-
 ```go
 package main
 
