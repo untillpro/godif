@@ -18,9 +18,9 @@ type func2 func(s string)
 ```go
 package implementor
 
-func Register() {
-    godif.RegisterImpl((decl.func1)(nil), MyFunc1)
-    godif.RegisterImpl((decl.func2)(nil), MyFunc2)
+func Declare() {
+    godif.Provide((decl.func1)(nil), MyFunc1)
+    godif.Provide((decl.func2)(nil), MyFunc2)
 }
 
 func MyFunc1(x int, y int) {
@@ -38,12 +38,12 @@ func MyFunc2(s string) {
 ```go
 package consumer
 
-var f1 decl.Func1
-var f2 decl.Func2
+var F1 decl.Func1
+var F2 decl.Func2
 
-func Register() {
-    godif.RegisterDep(&f1)
-    godif.RegisterDep(&f2)
+func Declare() {
+    godif.Require(&f1)
+    godif.Require(&f2)
 }
 ```
 
@@ -54,13 +54,14 @@ func Register() {
 package main
 
 func main(){
-    implementor.Register()
-    consumer.Register()
+    implementor.Declare()
+    consumer.Declare()
 
     errs := godif.ResolveAll()
     if len(errs) != 0{
         // Cyclic dependencies
         // Unresolved dependencies
+        // Multiple implementations
         log.Panic(errs)
     }
 
@@ -79,6 +80,8 @@ func main(){
     defer godif.Stop()
 
     // Do something
+    consumer.F1(1, 2)
+    consumer.F2("Hello")
 
 }
 
@@ -86,4 +89,5 @@ func main(){
 
 # Under the Hood
 
-- All functions works using static instance of `godif.Container`
+- All registration functions works with default instance of `godif.ContainerDeclaration`
+- ResolveAll creates default instance of `godif.ContainerInstance` which is used to init/finit/start/stop
