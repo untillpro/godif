@@ -1,6 +1,6 @@
 # godif
 
-Go dependency injection for functions (ant not only...)
+Go dependency injection for functions (and not only...)
 
 # Usage
 
