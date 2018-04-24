@@ -59,6 +59,7 @@ func main(){
 
     errs := godif.ResolveAll()
     if len(errs) != 0{
+        // Non-assignalble Requirements
         // Cyclic dependencies
         // Unresolved dependencies
         // Multiple implementations
