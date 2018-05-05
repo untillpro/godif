@@ -86,8 +86,3 @@ func main(){
 
 - All registration functions works with default instance of `godif.ContainerDeclaration`
 - ResolveAll creates default instance of `godif.ContainerInstance` which is used to init/finit/start/stop
-
-
-# See Also
-- https://npf.io/2014/04/mocking-functions-in-go/
-- https://github.com/Smarp/funcmock
