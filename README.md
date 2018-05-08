@@ -7,45 +7,45 @@ Go dependency injection for functions (and not only...)
 ## 1. Declare Functions
 
 ```go
-package decl
+package ikvdb
 
-// Declare function types explicitly, otherwise functions are matched by signature
-type Func1Type func(x int, y int)
-type Func2Type func(s string)
+// Put saves given key and value to some persistent storage
+var Put func(ctx context.Context, key interface{}, value interface{})
 
-var Func1 Func1Type
-var Func2 Func2Type
+// Get gets the value from some persistent storage
+var Get func(ctx context.Context, key interface{}) (value interface{}, ok bool)
 ```
 
 ## 2. Provide Functions
 
 ```go
-package prov
+package kvdb
 
 func Declare() {
-    godif.Provide(decl.func1, MyFunc1)
-    godif.Provide(decl.func2, MyFunc2)
+    godif.Provide(&ikvdb.Put, Put)
+    godif.Provide(&ikvdb.Get, Get)
 }
 
-func MyFunc1(x int, y int) {
-...
+// Get implements ikvdb.Get
+func Get(ctx context.Context, key interface{}) (value interface{}, ok bool) {
+	return nil, false
 }
 
-func MyFunc2(s string) {
-...
-}
 
 ```
 
-## 3. Require Functions
+## 3. Use Functions
 
 ```go
-package req
+package usage
 
 func Declare() {
     godif.Require(&decl.Func1)
     godif.Require(&decl.Func2)
 }
+
+func
+
 ```
 
 ## 4. Build App
@@ -55,7 +55,7 @@ package main
 
 func main(){
     prov.Declare()
-    req.Declare()
+    usage.Declare()
 
     errs := godif.ResolveAll()
     if len(errs) != 0{
@@ -76,8 +76,8 @@ func main(){
     } 
 
     // Do something
-    declare.Func1(1, 2)
-    declare.Func2("Hello")
+    ikvdb.Put("key1", "value1")
+    v1, ok := ikvdb.Get("key1")
 
 }
 
