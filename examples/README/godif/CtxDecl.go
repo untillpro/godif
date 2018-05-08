@@ -15,3 +15,8 @@ func (cd *CtxDecl) Require(pFunc interface{}) {
 // RegisterCtxMain function in given context
 func (cd *CtxDecl) RegisterCtxMain(pInitFunc interface{}) {
 }
+
+// CreateCtxInst s.e.
+func (cd *CtxDecl) CreateCtxInst() *CtxInst {
+	return nil
+}
