@@ -13,7 +13,7 @@ type s struct{}
 func Declare(cd *godif.CtxDecl) {
 	cd.Require(&ikvdb.Get)
 	cd.Require(&ikvdb.Put)
-	cd.RegisterCtxInit(CtxInit)
+	//	cd.RegisterCtxInit(CtxInit)
 	cd.RegisterCtxMain(CtxMain)
 }
 

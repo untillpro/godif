@@ -5,11 +5,12 @@ import (
 
 	"github.com/maxim-ge/godif/examples/README/godif"
 	"github.com/maxim-ge/godif/examples/README/kvdb"
+	"github.com/maxim-ge/godif/examples/README/service"
 )
 
 func main() {
-	kvdb.Declare()
-	usage.Declare()
+	kvdb.Declare(godif.RootCD)
+	service.Declare(godif.RootCD)
 
 	errs := godif.ResolveAll()
 	if len(errs) != 0 {
@@ -22,8 +23,8 @@ func main() {
 
 	// All implementors of godif.InitFunc will be called
 	// Dependency defines the order of init
-	ctx, errs := godif.Init()
-	defer godif.Finit()
+	// ctx, errs := godif.Init()
+	// defer godif.Finit()
 
 	if len(errs) != 0 {
 		log.Panic(errs)
