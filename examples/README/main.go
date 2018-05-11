@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/maxim-ge/godif/examples/README/godif"
@@ -20,6 +21,9 @@ func main() {
 		// Multiple provisions
 		log.Panic(errs)
 	}
+
+	ctxInst := godif.RootCD.CreateCtxInst(context.Background())
+	ctxInst.
 
 	// All implementors of godif.InitFunc will be called
 	// Dependency defines the order of init

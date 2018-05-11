@@ -1,5 +1,7 @@
 package godif
 
+import "context"
+
 // CtxDecl -arations
 type CtxDecl struct {
 }
@@ -12,11 +14,11 @@ func (cd *CtxDecl) Provide(pFunc interface{}, impl interface{}) {
 func (cd *CtxDecl) Require(pFunc interface{}) {
 }
 
-// RegisterCtxMain function in given context
-func (cd *CtxDecl) RegisterCtxMain(pInitFunc interface{}) {
+// ProvideMain function in given context
+func (cd *CtxDecl) ProvideMain(pMain func(ctx context.Context)) {
 }
 
 // CreateCtxInst s.e.
-func (cd *CtxDecl) CreateCtxInst() *CtxInst {
+func (cd *CtxDecl) CreateCtxInst(ctx context.Context) *CtxInst {
 	return nil
 }
