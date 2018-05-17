@@ -8,11 +8,18 @@ import (
 	"runtime"
 )
 
-var funcs map[reflect.Type]interface{}
+var registered map[reflect.Type][]interface{}
 var required []interface{}
 
+// to ContainerDeclaration
+type request struct {
+	pkgName string
+	typ reflect.Type
+	impl interface{}
+}
+
 func init() {
-	funcs = make(map[reflect.Type]interface{})
+	registered = make(map[reflect.Type][]interface{})
 }
 
 // RegisterImpl register implementation
@@ -22,7 +29,8 @@ func RegisterImpl(funcImplementation interface{}) {
 
 // RegisterImplByType registers implementation by type
 func RegisterImplByType(typ reflect.Type, funcImplementation interface{}) {
-	funcs[typ] = funcImplementation
+	typ.Name()
+	registered[typ] = append(registered[typ], funcImplementation)
 	funcImplType := reflect.TypeOf(funcImplementation)
 	log.Println("Registered:", funcImplType, "pkg=", funcImplType.PkgPath())
 }
@@ -45,16 +53,28 @@ func Require(pFunc interface{}) {
 
 // ResolveAll all deps
 func ResolveAll() error {
-	for _, pFunc := range required {
-		t := reflect.TypeOf(pFunc).Elem()
-		f := funcs[t]
-		if nil == f {
-			log.Panicln("required ", t, " not registered")
-			return errors.New("required " + t.Name() + " not registered")
+	packagesProv, packagesReq := make([]string, 0), make([]string, 0)
+	for _, reqVar := range required {
+		reqType := reflect.TypeOf(reqVar)
+		impl := registered[reqType]
+		if nil == impl {
+			// unresolved dependencies
+			return errors.New("required " + reqType.String() + " not registered")
 		}
 
-		v := reflect.ValueOf(pFunc).Elem()
-		v.Set(reflect.ValueOf(f))
+		if len(impl) > 1 {
+			// multiple implementations
+			return fmt.Errorf("%s registered %d times", reqType.String(), len(impl))
+		}
+
+		pkgReq := reqType.PkgPath()
+		pkgProv := reflect.TypeOf(impl[0]).PkgPath()
+
+		packagesReq = append(packagesReq, pkgReq)
+		packagesProv = append(packagesProv, pkgProv)
+
+		v := reflect.ValueOf(reqVar).Elem()
+		v.Set(reflect.ValueOf(impl[0]))
 	}
 	return nil
 }
