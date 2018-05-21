@@ -55,19 +55,9 @@ func Require(pFunc interface{}) {
 func ResolveAll() error {
 	packagesProv, packagesReq := make([]string, 0), make([]string, 0)
 	for _, reqVar := range required {
-		test1 := reqVar.(interface{})
-		fmt.Printf(reflect.TypeOf(test1).String())
 		reqType := reflect.TypeOf(&reqVar)
-		//fmt.Printf(reqType.String())
 		impl := registered[reqType]
-		fmt.Println(impl[0])
-		fmt.Println(registered)
 		if nil == impl {
-			impl = registered[reflect.TypeOf(test1)]
-			if nil == impl {
-				return errors.New("required " + reqType.String() + " not registered")
-			}
-			// unresolved dependencies
 			return errors.New("required " + reqType.String() + " not registered")
 		}
 
@@ -76,14 +66,13 @@ func ResolveAll() error {
 			return fmt.Errorf("%s registered %d times", reqType.String(), len(impl))
 		}
 
-		pkgReq := reqType.PkgPath()
+		pkgReq := reqType.Elem().Elem().PkgPath()
 		pkgProv := reflect.TypeOf(impl[0]).PkgPath()
 
 		packagesReq = append(packagesReq, pkgReq)
 		packagesProv = append(packagesProv, pkgProv)
 
 		v := reflect.ValueOf(reqVar).Elem()
-		fmt.Println(v)
 		v.Set(reflect.ValueOf(impl[0]))
 	}
 	return nil

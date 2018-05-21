@@ -1,7 +1,6 @@
 package godif
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,13 +10,17 @@ type Func1Type = func(x int, y int) int
 
 func TestSimple(t *testing.T) {
 	var injectedFunc Func1Type
-	RegisterImpl(f)
-	Require(&injectedFunc)
-	fmt.Println(&injectedFunc)
+
 	err := ResolveAll()
-	if err != nil {
-		t.Errorf(err.Error())
-	}
+	assert.Nil(t, err)
+	
+	Require(&injectedFunc)
+	err = ResolveAll()
+	assert.NotNil(t, err)
+
+	RegisterImpl(f)
+	err = ResolveAll()
+	assert.Nil(t, err)
 	assert.Equal(t, 5, injectedFunc(3, 2))
 }
 
