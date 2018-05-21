@@ -14,8 +14,8 @@ var required []interface{}
 // to ContainerDeclaration
 type request struct {
 	pkgName string
-	typ reflect.Type
-	impl interface{}
+	typ     reflect.Type
+	impl    interface{}
 }
 
 func init() {
@@ -24,7 +24,7 @@ func init() {
 
 // RegisterImpl register implementation
 func RegisterImpl(funcImplementation interface{}) {
-	RegisterImplByType(reflect.TypeOf(funcImplementation), funcImplementation)
+	RegisterImplByType(reflect.TypeOf(&funcImplementation), funcImplementation)
 }
 
 // RegisterImplByType registers implementation by type
@@ -55,9 +55,18 @@ func Require(pFunc interface{}) {
 func ResolveAll() error {
 	packagesProv, packagesReq := make([]string, 0), make([]string, 0)
 	for _, reqVar := range required {
-		reqType := reflect.TypeOf(reqVar)
+		test1 := reqVar.(interface{})
+		fmt.Printf(reflect.TypeOf(test1).String())
+		reqType := reflect.TypeOf(&reqVar)
+		//fmt.Printf(reqType.String())
 		impl := registered[reqType]
+		fmt.Println(impl[0])
+		fmt.Println(registered)
 		if nil == impl {
+			impl = registered[reflect.TypeOf(test1)]
+			if nil == impl {
+				return errors.New("required " + reqType.String() + " not registered")
+			}
 			// unresolved dependencies
 			return errors.New("required " + reqType.String() + " not registered")
 		}
@@ -74,6 +83,7 @@ func ResolveAll() error {
 		packagesProv = append(packagesProv, pkgProv)
 
 		v := reflect.ValueOf(reqVar).Elem()
+		fmt.Println(v)
 		v.Set(reflect.ValueOf(impl[0]))
 	}
 	return nil
