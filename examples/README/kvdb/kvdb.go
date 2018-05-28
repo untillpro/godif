@@ -3,8 +3,8 @@ package kvdb
 import (
 	"context"
 
-	"github.com/maxim-ge/godif/examples/README/godif"
-	"github.com/maxim-ge/godif/examples/README/ikvdb"
+	"github.com/untillpro/godif/examples/README/godif"
+	"github.com/untillpro/godif/examples/README/ikvdb"
 )
 
 // Params are used for CtxInst initialization
@@ -20,8 +20,7 @@ func DeclareDb(cd *godif.CtxDecl) {
 
 // DeclareTransaction requirements and provisions
 func DeclareTransaction(cd *godif.CtxDecl) {
-	cd.Provide
-	cd.
+
 }
 
 // Get implements ikvdb.Get
@@ -31,5 +30,5 @@ func Get(ctx context.Context, key interface{}) (value interface{}, ok bool) {
 
 //
 func Init(parentCtx context.Context) context.Context {
-
+	return nil
 }
