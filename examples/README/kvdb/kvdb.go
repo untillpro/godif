@@ -28,7 +28,7 @@ func Get(ctx context.Context, key interface{}) (value interface{}, ok bool) {
 	return nil, false
 }
 
-//
+// Init the context
 func Init(parentCtx context.Context) context.Context {
 	return nil
 }
