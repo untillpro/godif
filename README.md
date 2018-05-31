@@ -14,6 +14,7 @@ var Put func(ctx context.Context, key interface{}, value interface{})
 
 // Get gets the value from some persistent storage
 var Get func(ctx context.Context, key interface{}) (value interface{}, ok bool)
+
 ```
 
 ## 2. Provide Functions
@@ -21,66 +22,69 @@ var Get func(ctx context.Context, key interface{}) (value interface{}, ok bool)
 ```go
 package kvdb
 
+// Declare requirements and provisions
 func Declare() {
-    godif.Provide(&ikvdb.Put, Put)
-    godif.Provide(&ikvdb.Get, Get)
+	godif.Provide(&ikvdb.Get, Get)
+	godif.Provide(&ikvdb.Put, Put)
 }
+
+var mapDb = make(map[interface{}]interface{})
 
 // Get implements ikvdb.Get
 func Get(ctx context.Context, key interface{}) (value interface{}, ok bool) {
-	return nil, false
+	val, ok := mapDb[key]
+	return val, ok
 }
 
-
+// Put implements ikvdb.Put
+func Put(ctx context.Context, key interface{}, value interface{}) {
+	mapDb[key] = value
+}
 ```
 
 ## 3. Use Functions
 
 ```go
-package usage
+package service
 
+// Declare dependencies and provisions
 func Declare() {
-    godif.Require(&decl.Func1)
-    godif.Require(&decl.Func2)
+	godif.Require(&ikvdb.Put)
 }
 
-func
+type ctxKey string
+
+// CtxUserName denotes user name
+var CtxUserName = ctxKey("UserName")
+
+// Start something
+func Start(ctx context.Context) {
+	user := ctx.Value("CurrentUser")
+	ikvdb.Put(ctx, "startedTime", time.Now())
+	ikvdb.Put(ctx, "startedBy", user)
+}
 
 ```
 
 ## 4. Build App
 
 ```go
-package main
+func main() {
+	kvdb.Declare()
+	service.Declare()
 
-func main(){
-    prov.Declare()
-    usage.Declare()
+	errs := godif.ResolveAll()
+	if len(errs) != 0 {
+		// Non-assignalble Requirements
+		// Cyclic dependencies
+		// Unresolved dependencies
+		// Multiple provisions
+		log.Panic(errs)
+	}
 
-    errs := godif.ResolveAll()
-    if len(errs) != 0{
-        // Non-assignalble Requirements
-        // Cyclic dependencies
-        // Unresolved dependencies
-        // Multiple implementations
-        log.Panic(errs)
-    }
-
-    // All implementors of godif.InitFunc will be called
-    // Dependency defines the order of init
-    errs = godif.Init()
-    defer godif.Finit()
-
-    if len(errs) != 0{
-        log.Panic(errs)
-    } 
-
-    // Do something
-    ikvdb.Put("key1", "value1")
-    v1, ok := ikvdb.Get("key1")
-
+	ctx := context.WithValue(context.Background(), service.CtxUserName, "Peter")
+	service.Start(ctx)
 }
-
 ```
 # Under the Hood
 

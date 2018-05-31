@@ -4,14 +4,14 @@ import (
 	"context"
 	"log"
 
-	"github.com/maxim-ge/godif/examples/README/godif"
-	"github.com/maxim-ge/godif/examples/README/kvdb"
-	"github.com/maxim-ge/godif/examples/README/service"
+	"github.com/untillpro/godif/examples/README/godif"
+	"github.com/untillpro/godif/examples/README/kvdb"
+	"github.com/untillpro/godif/examples/README/service"
 )
 
 func main() {
-	kvdb.Declare(godif.RootCD)
-	service.Declare(godif.RootCD)
+	kvdb.Declare()
+	service.Declare()
 
 	errs := godif.ResolveAll()
 	if len(errs) != 0 {
@@ -22,16 +22,6 @@ func main() {
 		log.Panic(errs)
 	}
 
-	ctxInst := godif.RootCD.CreateCtxInst(context.Background())
-	ctxInst.
-
-	// All implementors of godif.InitFunc will be called
-	// Dependency defines the order of init
-	// ctx, errs := godif.Init()
-	// defer godif.Finit()
-
-	if len(errs) != 0 {
-		log.Panic(errs)
-	}
-
+	ctx := context.WithValue(context.Background(), service.CtxUserName, "Peter")
+	service.Start(ctx)
 }

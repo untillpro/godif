@@ -7,28 +7,21 @@ import (
 	"github.com/untillpro/godif/examples/README/ikvdb"
 )
 
-// Params are used for CtxInst initialization
-type Params struct {
-	Dir      string
-	ValueDir string
+// Declare requirements and provisions
+func Declare() {
+	godif.Provide(&ikvdb.Get, Get)
+	godif.Provide(&ikvdb.Put, Put)
 }
 
-// DeclareDb requirements and provisions
-func DeclareDb(cd *godif.CtxDecl) {
-	cd.Provide(&ikvdb.Get, Get)
-}
-
-// DeclareTransaction requirements and provisions
-func DeclareTransaction(cd *godif.CtxDecl) {
-
-}
+var mapDb = make(map[interface{}]interface{})
 
 // Get implements ikvdb.Get
 func Get(ctx context.Context, key interface{}) (value interface{}, ok bool) {
-	return nil, false
+	val, ok := mapDb[key]
+	return val, ok
 }
 
-// Init the context
-func Init(parentCtx context.Context) context.Context {
-	return nil
+// Put implements ikvdb.Put
+func Put(ctx context.Context, key interface{}, value interface{}) {
+	mapDb[key] = value
 }

@@ -7,6 +7,3 @@ var Put func(ctx context.Context, key interface{}, value interface{})
 
 // Get gets the value from some persistent storage
 var Get func(ctx context.Context, key interface{}) (value interface{}, ok bool)
-
-// Get gets the value from some persistent storage
-var GetRange func(ctx context.Context, key interface{}) (value interface{}, ok bool)

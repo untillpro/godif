@@ -2,26 +2,25 @@ package service
 
 import (
 	"context"
+	"time"
 
-	"github.com/maxim-ge/godif/examples/README/godif"
-	"github.com/maxim-ge/godif/examples/README/ikvdb"
+	"github.com/untillpro/godif/examples/README/godif"
+	"github.com/untillpro/godif/examples/README/ikvdb"
 )
 
-type s struct{}
-
 // Declare dependencies and provisions
-func Declare(cd *godif.CtxDecl) {
-	cd.Require(&ikvdb.Get)
-	cd.Require(&ikvdb.Put)
-	//	cd.RegisterCtxInit(CtxInit)
-	cd.RegisterCtxMain(CtxMain)
+func Declare() {
+	godif.Require(&ikvdb.Put)
 }
 
-// CtxInit -ilalizer
-func CtxInit(ctx context.Context, folderName string) context.Context {
-	return ctx
-}
+type ctxKey string
 
-// CtxMain function
-func CtxMain(ctx context.Context) {
+// CtxUserName denotes user name
+var CtxUserName = ctxKey("UserName")
+
+// Start something
+func Start(ctx context.Context) {
+	user := ctx.Value("CurrentUser")
+	ikvdb.Put(ctx, "startedTime", time.Now())
+	ikvdb.Put(ctx, "startedBy", user)
 }
