@@ -59,7 +59,7 @@ var CtxUserName = ctxKey("UserName")
 
 // Start something
 func Start(ctx context.Context) {
-	user := ctx.Value("CurrentUser")
+	user := ctx.Value(CtxUserName)
 	ikvdb.Put(ctx, "startedTime", time.Now())
 	ikvdb.Put(ctx, "startedBy", user)
 }
