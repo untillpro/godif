@@ -86,7 +86,3 @@ func main() {
 	service.Start(ctx)
 }
 ```
-# Under the Hood
-
-- All registration functions works with default instance of `godif.ContainerDeclaration`
-- ResolveAll creates default instance of `godif.ContainerInstance` which is used to init/finit/start/stop
