@@ -1,7 +1,6 @@
 package godif
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -11,39 +10,43 @@ import (
 var registered map[reflect.Type][]interface{}
 var required []interface{}
 
-// to ContainerDeclaration
-type request struct {
-	pkgName string
-	typ     reflect.Type
-	impl    interface{}
-}
-
 func init() {
 	registered = make(map[reflect.Type][]interface{})
 }
 
-// RegisterImpl register implementation
-func RegisterImpl(funcImplementation interface{}) {
-	RegisterImplByType(reflect.TypeOf(&funcImplementation), funcImplementation)
+// Reset clears all assignations
+func Reset() {
+	registered = make(map[reflect.Type][]interface{})
+	if required != nil {
+		for _, r := range required {
+			v := reflect.ValueOf(r).Elem()
+			v.Set(reflect.Zero(v.Type()))
+		}
+		required = make([]interface{}, 0)
+	} 
 }
 
-// RegisterImplByType registers implementation by type
-func RegisterImplByType(typ reflect.Type, funcImplementation interface{}) {
-	typ.Name()
+// ProvideByImpl register implementation of funcImplementation type
+func ProvideByImpl(funcImplementation interface{}) {
+	ProvideByType(reflect.TypeOf(funcImplementation), funcImplementation)
+}
+
+// ProvideByType registers implementation by type
+func ProvideByType(typ reflect.Type, funcImplementation interface{}) {
 	registered[typ] = append(registered[typ], funcImplementation)
 	funcImplType := reflect.TypeOf(funcImplementation)
-	log.Println("Registered:", funcImplType, "pkg=", funcImplType.PkgPath())
+	log.Println("Registered:", funcImplType)
 }
 
-// RegisterImplByVar registers implementation by nil var
-func RegisterImplByVar(ref interface{}, funcImplementation interface{}) {
-	RegisterImplByType(reflect.TypeOf(ref), funcImplementation)
+// Provide registers implementation of ref type 
+func Provide(ref interface{}, funcImplementation interface{}) {
+	ProvideByType(reflect.TypeOf(ref).Elem(), funcImplementation)
 }
 
 // Require registers dep
 func Require(pFunc interface{}) {
 	required = append(required, pFunc)
-	log.Println("Required:", reflect.TypeOf(pFunc), "pkg=", reflect.TypeOf(pFunc).PkgPath())
+	log.Println("Required:", reflect.TypeOf(pFunc))
 	pc, _, _, ok := runtime.Caller(1)
 	details := runtime.FuncForPC(pc)
 	if ok && details != nil {
@@ -52,28 +55,29 @@ func Require(pFunc interface{}) {
 }
 
 // ResolveAll all deps
-func ResolveAll() error {
-	packagesProv, packagesReq := make([]string, 0), make([]string, 0)
+func ResolveAll() Errors {
+	var errs Errors
 	for _, reqVar := range required {
-		reqType := reflect.TypeOf(&reqVar)
+		reqType := reflect.TypeOf(reqVar).Elem()
 		impl := registered[reqType]
+
 		if nil == impl {
-			return errors.New("required " + reqType.String() + " not registered")
+			errs = append(errs, &EImplementationNotProvided{reqType})
 		}
 
 		if len(impl) > 1 {
-			// multiple implementations
-			return fmt.Errorf("%s registered %d times", reqType.String(), len(impl))
+			errs = append(errs, &EMultipleImplementations{reflect.TypeOf(reqVar), len(impl)})
 		}
 
-		pkgReq := reqType.Elem().Elem().PkgPath()
-		pkgProv := reflect.TypeOf(impl[0]).PkgPath()
-
-		packagesReq = append(packagesReq, pkgReq)
-		packagesProv = append(packagesProv, pkgProv)
-
 		v := reflect.ValueOf(reqVar).Elem()
-		v.Set(reflect.ValueOf(impl[0]))
+
+		if !v.CanSet() {
+			errs = append(errs, &ENonAssignableRequirement{reqType})
+		}
+
+		if len(errs) == 0 {
+			v.Set(reflect.ValueOf(impl[0]))
+		}
 	}
-	return nil
+	return errs
 }
