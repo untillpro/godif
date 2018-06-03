@@ -1,82 +1,84 @@
 package godif
 
 import (
-	"fmt"
-	"log"
 	"reflect"
 	"runtime"
 )
 
-var registered map[reflect.Type][]interface{}
-var required []interface{}
+type srcElem struct {
+	file string
+	line int
+	elem interface{}
+}
+
+var provided map[reflect.Type][]srcElem
+var required []srcElem
 
 func init() {
-	registered = make(map[reflect.Type][]interface{})
+	provided = make(map[reflect.Type][]srcElem)
 }
 
 // Reset clears all assignations
 func Reset() {
-	registered = make(map[reflect.Type][]interface{})
+	provided = make(map[reflect.Type][]srcElem)
 	if required != nil {
 		for _, r := range required {
-			v := reflect.ValueOf(r).Elem()
+			v := reflect.ValueOf(r.elem).Elem()
 			v.Set(reflect.Zero(v.Type()))
 		}
-		required = make([]interface{}, 0)
-	} 
+		required = make([]srcElem, 0)
+	}
 }
 
-// ProvideByImpl register implementation of funcImplementation type
+// ProvideByImpl registers implementation of funcImplementation type
 func ProvideByImpl(funcImplementation interface{}) {
 	ProvideByType(reflect.TypeOf(funcImplementation), funcImplementation)
 }
 
 // ProvideByType registers implementation by type
 func ProvideByType(typ reflect.Type, funcImplementation interface{}) {
-	registered[typ] = append(registered[typ], funcImplementation)
-	funcImplType := reflect.TypeOf(funcImplementation)
-	log.Println("Registered:", funcImplType)
+	provideByType(typ, funcImplementation)
 }
 
-// Provide registers implementation of ref type 
+func provideByType(typ reflect.Type, funcImplementation interface{}) {
+	_, file, line, _ := runtime.Caller(2)
+	provided[typ] = append(provided[typ], srcElem{file, line, funcImplementation})
+}
+
+// Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
-	ProvideByType(reflect.TypeOf(ref).Elem(), funcImplementation)
+	provideByType(reflect.TypeOf(ref).Elem(), funcImplementation)
 }
 
 // Require registers dep
 func Require(pFunc interface{}) {
-	required = append(required, pFunc)
-	log.Println("Required:", reflect.TypeOf(pFunc))
-	pc, _, _, ok := runtime.Caller(1)
-	details := runtime.FuncForPC(pc)
-	if ok && details != nil {
-		fmt.Println("Called from", details.Name())
-	}
+	_, file, line, _ := runtime.Caller(1)
+	required = append(required, srcElem{file, line, pFunc})
 }
 
 // ResolveAll all deps
 func ResolveAll() Errors {
 	var errs Errors
 	for _, reqVar := range required {
-		reqType := reflect.TypeOf(reqVar).Elem()
-		impl := registered[reqType]
+		reqType := reflect.TypeOf(reqVar.elem).Elem()
+		impl := provided[reqType]
 
 		if nil == impl {
 			errs = append(errs, &EImplementationNotProvided{reqType})
 		}
 
 		if len(impl) > 1 {
-			errs = append(errs, &EMultipleImplementations{reflect.TypeOf(reqVar), len(impl)})
+			errs = append(errs, &EMultipleImplementations{reflect.TypeOf(reqVar.elem), impl})
 		}
 
-		v := reflect.ValueOf(reqVar).Elem()
+		v := reflect.ValueOf(reqVar.elem).Elem()
 
 		if !v.CanSet() {
-			errs = append(errs, &ENonAssignableRequirement{reqType})
+			errs = append(errs, &ENonAssignableRequirement{reqType, reqVar})
 		}
 
 		if len(errs) == 0 {
-			v.Set(reflect.ValueOf(impl[0]))
+			v.Set(reflect.ValueOf(impl[0].elem))
 		}
 	}
 	return errs

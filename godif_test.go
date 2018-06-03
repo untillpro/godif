@@ -2,6 +2,8 @@ package godif
 
 import (
 	"fmt"
+	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,18 +12,9 @@ import (
 type Func1Type = func(x int, y int) int
 type Func2Type = func(x float32) float32
 
-//var Put func(ctx context.Context, key interface{}, value interface{})
-
-// output to log, not to console
-
-func TestBasic(t *testing.T) {
+func TestExplicitType(t *testing.T) {
 	Reset()
 	var injectedFunc Func1Type
-	//var tmp func(x int, y int) int
-
-	// tmp() // show
-	// injectedFunc() // does not show
-
 
 	errs := ResolveAll()
 	if errs != nil {
@@ -57,6 +50,45 @@ func TestBasic(t *testing.T) {
 
 	Reset()
 	assert.Nil(t, injectedFunc)
+}
+
+func TestImplicitType(t *testing.T) {
+	var inject func(x int, y int) int
+	Require(&inject)
+	ProvideByImpl(f)
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Equal(t, 5, inject(2, 3))
+}
+
+func TestMultipleImplementationsError(t *testing.T) {
+	Reset()
+	var injectedFunc1 Func1Type
+
+	Require(&injectedFunc1)
+	_, fileF, lineF, _ := runtime.Caller(0); 
+	Provide(&injectedFunc1, f)
+	_, fileF2, lineF2, _ := runtime.Caller(0)
+	Provide(&injectedFunc1, f2)
+
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+
+	if e, ok := errs[0].(*EMultipleImplementations); ok {
+		fmt.Println(e)
+		assert.Equal(t, reflect.TypeOf(&injectedFunc1), e.Type)
+		assert.Equal(t, 2, len(e.impls))
+		assert.Equal(t, lineF + 1, e.impls[0].line)
+		assert.Equal(t, fileF, e.impls[0].file)
+		assert.Equal(t, lineF2 + 1, e.impls[1].line)
+		assert.Equal(t, fileF2, e.impls[1].file)
+	} else {
+		t.Fatal(errs)
+	}
 }
 
 func TestMultipleErrorsOnResolve(t *testing.T) {
@@ -109,41 +141,23 @@ func TestProvideByVar(t *testing.T) {
 	assert.Equal(t, float32(3.5), injectedFunc2(2.5))
 }
 
-func TestErrorOnMultipleImplementations(t *testing.T) {
-	Reset()
-	var injectedFunc Func1Type
-
-	Require(&injectedFunc)
-	ProvideByImpl(f)
-	ProvideByImpl(f3)
-	errs := ResolveAll()
-	if errs == nil {
-		t.Fatal()
-	}
-	switch errs[0].(type) {
-	case *EMultipleImplementations:
-		fmt.Println(errs[0])
-	default:
-		t.Fatal()
-	}
-
-	assert.Nil(t, injectedFunc)
-}
-
 func TestErrorOnNonAssignableRequirement(t *testing.T) {
 	Reset()
 	var injectedFunc *Func1Type
 
+	_, file, line, _ := runtime.Caller(0); 
 	Require(injectedFunc)
 	Provide(injectedFunc, f)
 	errs := ResolveAll()
-	if errs == nil {
-		t.Fatal()
+	if len(errs) != 1 {
+		t.Fatal(errs)
 	}
-	switch errs[0].(type) {
-	case *ENonAssignableRequirement:
-		fmt.Println(errs[0])
-	default:
+
+	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
+		fmt.Println(e)
+		assert.Equal(t, file, e.requirement.file)
+		assert.Equal(t, line + 1, e.requirement.line)
+	} else {
 		t.Fatal()
 	}
 }
