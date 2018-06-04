@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2018-present unTill Pro, Ltd. and Contributors
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 package godif
 
 import (
@@ -40,7 +47,7 @@ func (e *EImplementationNotProvided) Error() string {
 }
 
 func (e *ENonAssignableRequirement) Error() string {
-	return fmt.Sprintf("non-assignalble requirement for %s is declared at %s:%d", e.Type, e.requirement.file, e.requirement.line)
+	return fmt.Sprintf("non-assignable requirement for %s is declared at %s:%d", e.Type, e.requirement.file, e.requirement.line)
 }
 
 func (e Errors) Error() string {

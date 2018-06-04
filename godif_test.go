@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2018-present unTill Pro, Ltd. and Contributors
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 package godif
 
 import (
@@ -9,12 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type Func1Type = func(x int, y int) int
-type Func2Type = func(x float32) float32
-
-func TestExplicitType(t *testing.T) {
+func TestFromScratchImplicitTypeInject(t *testing.T) {
 	Reset()
-	var injectedFunc Func1Type
+	var injectedFunc func(x int, y int) int
 
 	errs := ResolveAll()
 	if errs != nil {
@@ -52,8 +56,11 @@ func TestExplicitType(t *testing.T) {
 	assert.Nil(t, injectedFunc)
 }
 
-func TestImplicitType(t *testing.T) {
-	var inject func(x int, y int) int
+func TestExplicitTypeInject(t *testing.T) {
+	type Func1Type = func(x int, y int) int
+	Reset()
+	var inject Func1Type
+
 	Require(&inject)
 	ProvideByImpl(f)
 	errs := ResolveAll()
@@ -65,10 +72,10 @@ func TestImplicitType(t *testing.T) {
 
 func TestMultipleImplementationsError(t *testing.T) {
 	Reset()
-	var injectedFunc1 Func1Type
+	var injectedFunc1 func(x int, y int) int
 
 	Require(&injectedFunc1)
-	_, fileF, lineF, _ := runtime.Caller(0); 
+	_, fileF, lineF, _ := runtime.Caller(0)
 	Provide(&injectedFunc1, f)
 	_, fileF2, lineF2, _ := runtime.Caller(0)
 	Provide(&injectedFunc1, f2)
@@ -82,9 +89,9 @@ func TestMultipleImplementationsError(t *testing.T) {
 		fmt.Println(e)
 		assert.Equal(t, reflect.TypeOf(&injectedFunc1), e.Type)
 		assert.Equal(t, 2, len(e.impls))
-		assert.Equal(t, lineF + 1, e.impls[0].line)
+		assert.Equal(t, lineF+1, e.impls[0].line)
 		assert.Equal(t, fileF, e.impls[0].file)
-		assert.Equal(t, lineF2 + 1, e.impls[1].line)
+		assert.Equal(t, lineF2+1, e.impls[1].line)
 		assert.Equal(t, fileF2, e.impls[1].file)
 	} else {
 		t.Fatal(errs)
@@ -93,8 +100,8 @@ func TestMultipleImplementationsError(t *testing.T) {
 
 func TestMultipleErrorsOnResolve(t *testing.T) {
 	Reset()
-	var injectedFunc1 Func1Type
-	var injectedFunc2 Func2Type
+	var injectedFunc1 func(x int, y int) int
+	var injectedFunc2 func(x float32) float32
 
 	Require(&injectedFunc1)
 	Require(&injectedFunc2)
@@ -121,13 +128,12 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 	default:
 		t.Fatal()
 	}
-
 }
 
 func TestProvideByVar(t *testing.T) {
 	Reset()
-	var injectedFunc1 Func1Type
-	var injectedFunc2 Func2Type
+	var injectedFunc1 func(x int, y int) int
+	var injectedFunc2 func(x float32) float32
 
 	Require(&injectedFunc1)
 	Require(&injectedFunc2)
@@ -143,9 +149,9 @@ func TestProvideByVar(t *testing.T) {
 
 func TestErrorOnNonAssignableRequirement(t *testing.T) {
 	Reset()
-	var injectedFunc *Func1Type
+	var injectedFunc *func(x int, y int) int
 
-	_, file, line, _ := runtime.Caller(0); 
+	_, file, line, _ := runtime.Caller(0)
 	Require(injectedFunc)
 	Provide(injectedFunc, f)
 	errs := ResolveAll()
@@ -156,7 +162,7 @@ func TestErrorOnNonAssignableRequirement(t *testing.T) {
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
 		fmt.Println(e)
 		assert.Equal(t, file, e.requirement.file)
-		assert.Equal(t, line + 1, e.requirement.line)
+		assert.Equal(t, line+1, e.requirement.line)
 	} else {
 		t.Fatal()
 	}
