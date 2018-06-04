@@ -24,12 +24,11 @@ type EMultipleImplementations struct {
 
 // EImplementationNotProvided error occurs if there is no implementation provided for a type
 type EImplementationNotProvided struct {
-	Type reflect.Type
+	required srcElem
 }
 
 // ENonAssignableRequirement error occurs if non-assignable (e.g. not variable) requirement is declared
 type ENonAssignableRequirement struct {
-	Type reflect.Type
 	requirement srcElem
 }
 
@@ -43,11 +42,11 @@ func (e *EMultipleImplementations) Error() string {
 }
 
 func (e *EImplementationNotProvided) Error() string {
-	return fmt.Sprintf("implementation of %s is not provided", e.Type)
+	return fmt.Sprintf("implementation of %s required at %s:%d is not provided", reflect.TypeOf(e.required.elem), e.required.file, e.required.line)
 }
 
 func (e *ENonAssignableRequirement) Error() string {
-	return fmt.Sprintf("non-assignable requirement for %s is declared at %s:%d", e.Type, e.requirement.file, e.requirement.line)
+	return fmt.Sprintf("non-assignable requirement is declared at %s:%d", e.requirement.file, e.requirement.line)
 }
 
 func (e Errors) Error() string {

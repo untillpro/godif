@@ -18,70 +18,68 @@ type srcElem struct {
 	elem interface{}
 }
 
-var provided map[reflect.Type][]srcElem
+var provided map[interface{}][]srcElem
 var required []srcElem
 
 func init() {
-	provided = make(map[reflect.Type][]srcElem)
+	provided = make(map[interface{}][]srcElem)
 }
 
 // Reset clears all assignations
 func Reset() {
-	provided = make(map[reflect.Type][]srcElem)
+	provided = make(map[interface{}][]srcElem)
 	if required != nil {
 		for _, r := range required {
-			v := reflect.ValueOf(r.elem).Elem()
-			v.Set(reflect.Zero(v.Type()))
+			v := reflect.ValueOf(r.elem)
+			if v.Kind() == reflect.Ptr {
+				v = v.Elem()
+				if v.CanSet() {
+					v.Set(reflect.Zero(v.Type()))
+				}
+			}
 		}
 		required = make([]srcElem, 0)
 	}
 }
 
-// ProvideByImpl registers implementation of funcImplementation type
-func ProvideByImpl(funcImplementation interface{}) {
-	ProvideByType(reflect.TypeOf(funcImplementation), funcImplementation)
-}
-
-// ProvideByType registers implementation by type
-func ProvideByType(typ reflect.Type, funcImplementation interface{}) {
-	provideByType(typ, funcImplementation)
-}
-
-func provideByType(typ reflect.Type, funcImplementation interface{}) {
-	_, file, line, _ := runtime.Caller(2)
-	provided[typ] = append(provided[typ], srcElem{file, line, funcImplementation})
-}
-
 // Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
-	provideByType(reflect.TypeOf(ref).Elem(), funcImplementation)
+	_, file, line, _ := runtime.Caller(1)
+	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation})
 }
 
 // Require registers dep
-func Require(pFunc interface{}) {
+func Require(toInject interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	required = append(required, srcElem{file, line, pFunc})
+	required = append(required, srcElem{file, line, toInject})
 }
 
 // ResolveAll all deps
 func ResolveAll() Errors {
 	var errs Errors
 	for _, reqVar := range required {
-		reqType := reflect.TypeOf(reqVar.elem).Elem()
-		impl := provided[reqType]
+
+		kind := reflect.ValueOf(reqVar.elem).Kind()
+
+		if kind != reflect.Ptr {
+			errs = append(errs, &ENonAssignableRequirement{reqVar})
+			continue
+		}
+
+		v := reflect.ValueOf(reqVar.elem).Elem()
+
+		impl := provided[reqVar.elem]
 
 		if nil == impl {
-			errs = append(errs, &EImplementationNotProvided{reqType})
+			errs = append(errs, &EImplementationNotProvided{reqVar})
 		}
 
 		if len(impl) > 1 {
 			errs = append(errs, &EMultipleImplementations{reflect.TypeOf(reqVar.elem), impl})
 		}
 
-		v := reflect.ValueOf(reqVar.elem).Elem()
-
 		if !v.CanSet() {
-			errs = append(errs, &ENonAssignableRequirement{reqType, reqVar})
+			errs = append(errs, &ENonAssignableRequirement{reqVar})
 		}
 
 		if len(errs) == 0 {

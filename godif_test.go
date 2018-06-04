@@ -45,7 +45,7 @@ func TestFromScratchImplicitTypeInject(t *testing.T) {
 	}
 	assert.Nil(t, injectedFunc)
 
-	ProvideByImpl(f)
+	Provide(&injectedFunc, f)
 	errs = ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
@@ -62,7 +62,7 @@ func TestExplicitTypeInject(t *testing.T) {
 	var inject Func1Type
 
 	Require(&inject)
-	ProvideByImpl(f)
+	Provide(&inject, f)
 	errs := ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
@@ -70,7 +70,7 @@ func TestExplicitTypeInject(t *testing.T) {
 	assert.Equal(t, 5, inject(2, 3))
 }
 
-func TestMultipleImplementationsError(t *testing.T) {
+func TestErrorOnMultipleImplementations(t *testing.T) {
 	Reset()
 	var injectedFunc1 func(x int, y int) int
 
@@ -117,37 +117,18 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 
 	switch errs[0].(type) {
 	case *EMultipleImplementations:
-		fmt.Println(errs[0])
 	default:
 		t.Fatal()
 	}
 
 	switch errs[1].(type) {
 	case *EImplementationNotProvided:
-		fmt.Println(errs[1])
 	default:
 		t.Fatal()
 	}
 }
 
-func TestProvideByVar(t *testing.T) {
-	Reset()
-	var injectedFunc1 func(x int, y int) int
-	var injectedFunc2 func(x float32) float32
-
-	Require(&injectedFunc1)
-	Require(&injectedFunc2)
-	Provide(&injectedFunc1, f)
-	Provide(&injectedFunc2, f2)
-	errs := ResolveAll()
-	if errs != nil {
-		t.Fatal(errs)
-	}
-	assert.Equal(t, 5, injectedFunc1(3, 2))
-	assert.Equal(t, float32(3.5), injectedFunc2(2.5))
-}
-
-func TestErrorOnNonAssignableRequirement(t *testing.T) {
+func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
 	Reset()
 	var injectedFunc *func(x int, y int) int
 
@@ -166,6 +147,45 @@ func TestErrorOnNonAssignableRequirement(t *testing.T) {
 	} else {
 		t.Fatal()
 	}
+}
+
+func TestErrorOnNonAssignableRequirementWrongKind(t *testing.T) {
+	Reset()
+	var injected *func(x int, y int) int
+
+	_, file, line, _ := runtime.Caller(0)
+	Require(f)
+	Provide(&injected, f)
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+
+	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
+		fmt.Println(e)
+		assert.Equal(t, file, e.requirement.file)
+		assert.Equal(t, line+1, e.requirement.line)
+	} else {
+		t.Fatal()
+	}
+}
+
+func TestMatchByPointer(t *testing.T) {
+	Reset()
+	var injected1 func(x int, y int) int
+	var injected2 func(x int, y int) int
+	Require(&injected1)
+	Require(&injected2)
+
+	Provide(&injected1, f3)
+	Provide(&injected2, f)
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+
+	assert.Equal(t, 6, injected1(2, 3))
+	assert.Equal(t, 5, injected2(2, 3))
 }
 
 func f(x int, y int) int {
