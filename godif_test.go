@@ -9,14 +9,13 @@ package godif
 
 import (
 	"fmt"
-	"reflect"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFromScratchImplicitTypeInject(t *testing.T) {
+func TestBasicUsage(t *testing.T) {
 	Reset()
 	var injectedFunc func(x int, y int) int
 
@@ -74,10 +73,11 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 	Reset()
 	var injectedFunc1 func(x int, y int) int
 
+	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&injectedFunc1)
-	_, fileF, lineF, _ := runtime.Caller(0)
+	_, implFileF, implLineF, _ := runtime.Caller(0)
 	Provide(&injectedFunc1, f)
-	_, fileF2, lineF2, _ := runtime.Caller(0)
+	_, implFileF2, implLineF2, _ := runtime.Caller(0)
 	Provide(&injectedFunc1, f2)
 
 	errs := ResolveAll()
@@ -87,12 +87,13 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 
 	if e, ok := errs[0].(*EMultipleImplementations); ok {
 		fmt.Println(e)
-		assert.Equal(t, reflect.TypeOf(&injectedFunc1), e.Type)
 		assert.Equal(t, 2, len(e.impls))
-		assert.Equal(t, lineF+1, e.impls[0].line)
-		assert.Equal(t, fileF, e.impls[0].file)
-		assert.Equal(t, lineF2+1, e.impls[1].line)
-		assert.Equal(t, fileF2, e.impls[1].file)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, implLineF+1, e.impls[0].line)
+		assert.Equal(t, implFileF, e.impls[0].file)
+		assert.Equal(t, implLineF2+1, e.impls[1].line)
+		assert.Equal(t, implFileF2, e.impls[1].file)
 	} else {
 		t.Fatal(errs)
 	}
@@ -142,8 +143,8 @@ func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
 
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
 		fmt.Println(e)
-		assert.Equal(t, file, e.requirement.file)
-		assert.Equal(t, line+1, e.requirement.line)
+		assert.Equal(t, file, e.req.file)
+		assert.Equal(t, line+1, e.req.line)
 	} else {
 		t.Fatal()
 	}
@@ -163,14 +164,14 @@ func TestErrorOnNonAssignableRequirementWrongKind(t *testing.T) {
 
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
 		fmt.Println(e)
-		assert.Equal(t, file, e.requirement.file)
-		assert.Equal(t, line+1, e.requirement.line)
+		assert.Equal(t, file, e.req.file)
+		assert.Equal(t, line+1, e.req.line)
 	} else {
 		t.Fatal()
 	}
 }
 
-func TestMatchByPointer(t *testing.T) {
+func TestMatchReqAndImplByPointer(t *testing.T) {
 	Reset()
 	var injected1 func(x int, y int) int
 	var injected2 func(x int, y int) int
@@ -186,6 +187,44 @@ func TestMatchByPointer(t *testing.T) {
 
 	assert.Equal(t, 6, injected1(2, 3))
 	assert.Equal(t, 5, injected2(2, 3))
+}
+
+func TestDoNotResolveAtAllOnAnyError(t *testing.T) {
+	var injected1 func(x int, y int) int
+	var injected2 func(x int, y int) int
+
+	Require(&injected1)
+	Require(&injected2)
+	Provide(&injected1, f)
+
+	errs := ResolveAll()
+	assert.Equal(t, 1, len(errs))
+
+	assert.Nil(t, injected1)
+	assert.Nil(t, injected2)
+}
+
+func TestErrorOnIncompatibleTypes(t *testing.T) {
+	Reset()
+	var injected func(x int, y int) int
+
+	_, reqFile, reqLine, _ := runtime.Caller(0)
+	Require(&injected)
+	_, implFile, implLine, _ := runtime.Caller(0)
+	Provide(&injected, f2)
+
+	errs := ResolveAll()
+	assert.NotNil(t, errs)
+
+	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+		fmt.Println(e)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, implFile, e.impl.file)
+		assert.Equal(t, implLine+1, e.impl.line)
+	} else {
+		t.Fatal()
+	}
 }
 
 func f(x int, y int) int {

@@ -56,34 +56,51 @@ func Require(toInject interface{}) {
 
 // ResolveAll all deps
 func ResolveAll() Errors {
-	var errs Errors
-	for _, reqVar := range required {
+	errs := getErrors()
+	if len(errs) > 0 {
+		return errs
+	}
 
-		kind := reflect.ValueOf(reqVar.elem).Kind()
+	for _, reqVar := range required {
+		v := reflect.ValueOf(reqVar.elem).Elem()
+		impl := provided[reqVar.elem]
+		v.Set(reflect.ValueOf(impl[0].elem))
+	}
+	return nil
+}
+
+func getErrors() Errors {
+	var errs Errors
+	for _, req := range required {
+
+		kind := reflect.ValueOf(req.elem).Kind()
 
 		if kind != reflect.Ptr {
-			errs = append(errs, &ENonAssignableRequirement{reqVar})
+			errs = append(errs, &ENonAssignableRequirement{req})
 			continue
 		}
 
-		v := reflect.ValueOf(reqVar.elem).Elem()
+		impls := provided[req.elem]
 
-		impl := provided[reqVar.elem]
-
-		if nil == impl {
-			errs = append(errs, &EImplementationNotProvided{reqVar})
+		if nil == impls {
+			errs = append(errs, &EImplementationNotProvided{req})
 		}
 
-		if len(impl) > 1 {
-			errs = append(errs, &EMultipleImplementations{reflect.TypeOf(reqVar.elem), impl})
+		if len(impls) > 1 {
+			errs = append(errs, &EMultipleImplementations{req, impls})
 		}
 
+		v := reflect.ValueOf(req.elem).Elem()
 		if !v.CanSet() {
-			errs = append(errs, &ENonAssignableRequirement{reqVar})
+			errs = append(errs, &ENonAssignableRequirement{req})
 		}
 
-		if len(errs) == 0 {
-			v.Set(reflect.ValueOf(impl[0].elem))
+		if len(impls) == 1 {
+			reqType := reflect.TypeOf(req.elem).Elem()
+			implType := reflect.TypeOf(impls[0].elem)
+			if !implType.AssignableTo(reqType) {
+				errs = append(errs, &EIncompatibleTypes{req, impls[0]})
+			}
 		}
 	}
 	return errs
