@@ -1,88 +1,87 @@
 # godif
 
-Inject Functions
+Go dependency injection for functions (and not only...)
 
 # Usage
 
 ## 1. Declare Functions
 
 ```go
-package decl
+package ikvdb
 
-// Declare function types explicitly, otherwise functions are matched by signature
-type Func1Type func(x int, y int)
-type Func2Type func(s string)
+// Put saves given key and value to some persistent storage
+var Put func(ctx context.Context, key interface{}, value interface{})
 
-var Func1 Func1Type
-var Func2 Func2Type
+// Get gets the value from some persistent storage
+var Get func(ctx context.Context, key interface{}) (value interface{}, ok bool)
+
 ```
 
 ## 2. Provide Functions
 
 ```go
-package prov
+package kvdb
 
+// Declare requirements and provisions
 func Declare() {
-    godif.Provide(decl.func1, MyFunc1)
-    godif.Provide(decl.func2, MyFunc2)
+	godif.Provide(&ikvdb.Get, Get)
+	godif.Provide(&ikvdb.Put, Put)
 }
 
-func MyFunc1(x int, y int) {
-...
+var mapDb = make(map[interface{}]interface{})
+
+// Get implements ikvdb.Get
+func Get(ctx context.Context, key interface{}) (value interface{}, ok bool) {
+	val, ok := mapDb[key]
+	return val, ok
 }
 
-func MyFunc2(s string) {
-...
+// Put implements ikvdb.Put
+func Put(ctx context.Context, key interface{}, value interface{}) {
+	mapDb[key] = value
 }
-
 ```
 
-## 3. Require Functions
+## 3. Use Functions
 
 ```go
-package req
+package service
 
+// Declare dependencies and provisions
 func Declare() {
-    godif.Require(&decl.Func1)
-    godif.Require(&decl.Func2)
+	godif.Require(&ikvdb.Put)
 }
+
+type ctxKey string
+
+// CtxUserName denotes user name
+var CtxUserName = ctxKey("UserName")
+
+// Start something
+func Start(ctx context.Context) {
+	user := ctx.Value(CtxUserName)
+	ikvdb.Put(ctx, "startedTime", time.Now())
+	ikvdb.Put(ctx, "startedBy", user)
+}
+
 ```
 
 ## 4. Build App
 
 ```go
-package main
+func main() {
+	kvdb.Declare()
+	service.Declare()
 
-func main(){
-    prov.Declare()
-    req.Declare()
+	errs := godif.ResolveAll()
+	if len(errs) != 0 {
+		// Non-assignalble Requirements
+		// Unresolved dependencies
+		// Multiple provisions
+		log.Panic(errs)
+	}
 
-    errs := godif.ResolveAll()
-    if len(errs) != 0{
-        // Non-assignalble Requirements
-        // Cyclic dependencies
-        // Unresolved dependencies
-        // Multiple implementations
-        log.Panic(errs)
-    }
-
-    // All implementors of godif.InitFunc will be called
-    // Dependency defines the order of init
-    errs = godif.Init()
-    defer godif.Finit()
-
-    if len(errs) != 0{
-        log.Panic(errs)
-    } 
-
-    // Do something
-    declare.Func1(1, 2)
-    declare.Func2("Hello")
-
+	ctx := context.WithValue(context.Background(), service.CtxUserName, "Peter")
+	service.Start(ctx)
 }
-
 ```
-# Under the Hood
-
-- All registration functions works with default instance of `godif.ContainerDeclaration`
-- ResolveAll creates default instance of `godif.ContainerInstance` which is used to init/finit/start/stop

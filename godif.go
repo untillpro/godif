@@ -1,60 +1,107 @@
+/*
+ * Copyright (c) 2018-present unTill Pro, Ltd. and Contributors
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
 package godif
 
 import (
-	"errors"
-	"fmt"
-	"log"
 	"reflect"
 	"runtime"
 )
 
-var funcs map[reflect.Type]interface{}
-var required []interface{}
+type srcElem struct {
+	file string
+	line int
+	elem interface{}
+}
+
+var provided map[interface{}][]srcElem
+var required []srcElem
 
 func init() {
-	funcs = make(map[reflect.Type]interface{})
+	provided = make(map[interface{}][]srcElem)
 }
 
-// RegisterImpl register implementation
-func RegisterImpl(funcImplementation interface{}) {
-	RegisterImplByType(reflect.TypeOf(funcImplementation), funcImplementation)
+// Reset clears all assignations
+func Reset() {
+	provided = make(map[interface{}][]srcElem)
+	if required != nil {
+		for _, r := range required {
+			v := reflect.ValueOf(r.elem)
+			if v.Kind() == reflect.Ptr {
+				v = v.Elem()
+				if v.CanSet() {
+					v.Set(reflect.Zero(v.Type()))
+				}
+			}
+		}
+		required = make([]srcElem, 0)
+	}
 }
 
-// RegisterImplByType registers implementation by type
-func RegisterImplByType(typ reflect.Type, funcImplementation interface{}) {
-	funcs[typ] = funcImplementation
-	funcImplType := reflect.TypeOf(funcImplementation)
-	log.Println("Registered:", funcImplType, "pkg=", funcImplType.PkgPath())
-}
-
-// RegisterImplByVar registers implementation by nil var
-func RegisterImplByVar(ref interface{}, funcImplementation interface{}) {
-	RegisterImplByType(reflect.TypeOf(ref), funcImplementation)
+// Provide registers implementation of ref type
+func Provide(ref interface{}, funcImplementation interface{}) {
+	_, file, line, _ := runtime.Caller(1)
+	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation})
 }
 
 // Require registers dep
-func Require(pFunc interface{}) {
-	required = append(required, pFunc)
-	log.Println("Required:", reflect.TypeOf(pFunc), "pkg=", reflect.TypeOf(pFunc).PkgPath())
-	pc, _, _, ok := runtime.Caller(1)
-	details := runtime.FuncForPC(pc)
-	if ok && details != nil {
-		fmt.Println("Called from", details.Name())
-	}
+func Require(toInject interface{}) {
+	_, file, line, _ := runtime.Caller(1)
+	required = append(required, srcElem{file, line, toInject})
 }
 
 // ResolveAll all deps
-func ResolveAll() error {
-	for _, pFunc := range required {
-		t := reflect.TypeOf(pFunc).Elem()
-		f := funcs[t]
-		if nil == f {
-			log.Panicln("required ", t, " not registered")
-			return errors.New("required " + t.Name() + " not registered")
-		}
+func ResolveAll() Errors {
+	errs := getErrors()
+	if len(errs) > 0 {
+		return errs
+	}
 
-		v := reflect.ValueOf(pFunc).Elem()
-		v.Set(reflect.ValueOf(f))
+	for _, reqVar := range required {
+		v := reflect.ValueOf(reqVar.elem).Elem()
+		impl := provided[reqVar.elem]
+		v.Set(reflect.ValueOf(impl[0].elem))
 	}
 	return nil
+}
+
+func getErrors() Errors {
+	var errs Errors
+	for _, req := range required {
+
+		kind := reflect.ValueOf(req.elem).Kind()
+
+		if kind != reflect.Ptr {
+			errs = append(errs, &ENonAssignableRequirement{req})
+			continue
+		}
+
+		impls := provided[req.elem]
+
+		if nil == impls {
+			errs = append(errs, &EImplementationNotProvided{req})
+		}
+
+		if len(impls) > 1 {
+			errs = append(errs, &EMultipleImplementations{req, impls})
+		}
+
+		v := reflect.ValueOf(req.elem).Elem()
+		if !v.CanSet() {
+			errs = append(errs, &ENonAssignableRequirement{req})
+		}
+
+		if len(impls) == 1 {
+			reqType := reflect.TypeOf(req.elem).Elem()
+			implType := reflect.TypeOf(impls[0].elem)
+			if !implType.AssignableTo(reqType) {
+				errs = append(errs, &EIncompatibleTypes{req, impls[0]})
+			}
+		}
+	}
+	return errs
 }
