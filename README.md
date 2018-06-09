@@ -4,8 +4,9 @@ Go dependency injection for functions (and not only...)
 
 # Usage
 
-- Package `ikvdb` declares functional interface (`Put`, `Get`) to buckets and  bucket definitions holder (`Buckets`)
-- Package `kvdb` provides functions and bucket definitions holder
+- Package `ikvdb` declares functional interface (`Put`, `Get`) to buckets and bucket definitions holder (`BucketDefs`)
+- Package `kvdb` provides `Get`/`Put` functions and bucket definitions holder
+- Package `service` uses `Put` function and provides `startBucket ` bucket definition
 
 ## 1. Declare
 
@@ -65,12 +66,12 @@ func Put(ctx context.Context, bucket *ikvdb.BucketDef, key interface{}, value in
 }
 ```
 
-## 3. Use Functions
+## 3. Use
 
 ```go
 package service
 
-var bucketStart = &ikvdb.BucketDef{Key: "start"}
+var bucketService = &ikvdb.BucketDef{Key: "service"}
 
 // Declare requires Put function and provides `bucketStart` definition
 func Declare() {
@@ -86,8 +87,8 @@ var CtxUserName = ctxKey("UserName")
 // Start something
 func Start(ctx context.Context) {
 	user := ctx.Value(CtxUserName)
-	ikvdb.Put(ctx, bucketStart, "startedTime", time.Now())
-	ikvdb.Put(ctx, bucketStart, "startedBy", user)
+	ikvdb.Put(ctx, bucketService, "startedTime", time.Now())
+	ikvdb.Put(ctx, bucketService, "startedBy", user)
 }
 
 ```

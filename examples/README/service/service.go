@@ -8,12 +8,12 @@ import (
 	"github.com/untillpro/godif/examples/README/ikvdb"
 )
 
-var bucketStart = &ikvdb.BucketDef{Key: "start"}
+var bucketService = &ikvdb.BucketDef{Key: "service"}
 
 // Declare requires Put function and provides `bucketStart` definition
 func Declare() {
 	godif.Require(&ikvdb.Put)
-	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketStart)
+	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService)
 }
 
 type ctxKey string
@@ -24,6 +24,6 @@ var CtxUserName = ctxKey("UserName")
 // Start something
 func Start(ctx context.Context) {
 	user := ctx.Value(CtxUserName)
-	ikvdb.Put(ctx, bucketStart, "startedTime", time.Now())
-	ikvdb.Put(ctx, bucketStart, "startedBy", user)
+	ikvdb.Put(ctx, bucketService, "startedTime", time.Now())
+	ikvdb.Put(ctx, bucketService, "startedBy", user)
 }
