@@ -87,13 +87,13 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 
 	if e, ok := errs[0].(*EMultipleImplementations); ok {
 		fmt.Println(e)
-		assert.Equal(t, 2, len(e.impls))
+		assert.Equal(t, 2, len(e.provs))
 		assert.Equal(t, reqLine+1, e.req.line)
 		assert.Equal(t, reqFile, e.req.file)
-		assert.Equal(t, implLineF+1, e.impls[0].line)
-		assert.Equal(t, implFileF, e.impls[0].file)
-		assert.Equal(t, implLineF2+1, e.impls[1].line)
-		assert.Equal(t, implFileF2, e.impls[1].file)
+		assert.Equal(t, implLineF+1, e.provs[0].line)
+		assert.Equal(t, implFileF, e.provs[0].file)
+		assert.Equal(t, implLineF2+1, e.provs[1].line)
+		assert.Equal(t, implFileF2, e.provs[1].file)
 	} else {
 		t.Fatal(errs)
 	}
@@ -214,17 +214,99 @@ func TestErrorOnIncompatibleTypes(t *testing.T) {
 	Provide(&injected, f2)
 
 	errs := ResolveAll()
-	assert.NotNil(t, errs)
+	assert.Equal(t, 1, len(errs))
 
 	if e, ok := errs[0].(*EIncompatibleTypes); ok {
 		fmt.Println(e)
 		assert.Equal(t, reqFile, e.req.file)
 		assert.Equal(t, reqLine+1, e.req.line)
-		assert.Equal(t, implFile, e.impl.file)
-		assert.Equal(t, implLine+1, e.impl.line)
+		assert.Equal(t, implFile, e.prov.file)
+		assert.Equal(t, implLine+1, e.prov.line)
 	} else {
 		t.Fatal()
 	}
+}
+
+func TestErrorOnProvidedButNotUsed(t *testing.T) {
+	Reset()
+	var injected func(x int, y int) int
+
+	_, implFile, implLine, _ := runtime.Caller(0)
+	Provide(&injected, f)
+
+	errs := ResolveAll()
+	assert.Equal(t, 1, len(errs))
+
+	if e, ok := errs[0].(*EProvidedNotUsed); ok {
+		assert.Equal(t, implFile, e.prov.file)
+		assert.Equal(t, implLine+1, e.prov.line)
+	} else {
+		t.Fatal()
+	}
+
+	Require(&injected)
+
+	assert.Nil(t, errs)
+}
+
+func TestDataInject(t * testing.T) {
+	var injected map[string]int
+	Require(&injected)
+	Provide(&injected, make(map[string]int))
+
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.NotNil(t, injected)
+}
+
+func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
+	var injected map[string]int
+	_, file, line, _ := runtime.Caller(0)
+	Require(&injected)
+	Provide(&injected, make([]int, 0))
+
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+
+	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+		fmt.Println(e)
+		assert.Equal(t, file, e.req.file)
+		assert.Equal(t, line+1, e.req.line)
+	} else {
+		t.Fatal()
+	}
+}
+
+
+func TestProvideMapValue(t *testing.T) {
+	Reset()
+	type bucketDef struct {
+		Key string
+	}
+
+	var bucketDefs map[string]*bucketDef
+
+	var bucketService = &bucketDef{Key: "service"}
+	Provide(&bucketDefs, map[string]*bucketDef{})
+	Require(&bucketDefs)
+
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Empty(t, bucketDefs)
+
+	ProvideMapValue(&bucketDefs, bucketService)
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Equal(t, 1, len(bucketDefs))
+	assert.Equal(t, bucketService, bucketDefs["service"])
 }
 
 func f(x int, y int) int {

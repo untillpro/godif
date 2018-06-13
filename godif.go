@@ -8,6 +8,7 @@
 package godif
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 )
@@ -19,10 +20,12 @@ type srcElem struct {
 }
 
 var provided map[interface{}][]srcElem
+var providedMapValues map[interface{}][]srcElem
 var required []srcElem
 
 func init() {
 	provided = make(map[interface{}][]srcElem)
+	providedMapValues = make(map[interface{}][]srcElem)
 }
 
 // Reset clears all assignations
@@ -40,6 +43,12 @@ func Reset() {
 		}
 		required = make([]srcElem, 0)
 	}
+}
+
+// ProvideMapValue registers map value. pData must have a Key field
+func ProvideMapValue(pMap interface{}, pData interface{}) {
+	_, file, line, _ := runtime.Caller(1)
+	providedMapValues[pMap] = append(providedMapValues[pMap], srcElem{file, line, pData})
 }
 
 // Provide registers implementation of ref type
@@ -65,6 +74,16 @@ func ResolveAll() Errors {
 		v := reflect.ValueOf(reqVar.elem).Elem()
 		impl := provided[reqVar.elem]
 		v.Set(reflect.ValueOf(impl[0].elem))
+	}
+
+	for ptrToVar, mapValues := range providedMapValues {
+		v := reflect.ValueOf(mapValues[0].elem) // is struct bucketDef
+		fmt.Println(v.Type())
+		fmt.Println(v.Kind())
+		fmt.Println(ptrToVar)
+		m := reflect.ValueOf(ptrToVar).Elem()
+		fmt.Println(m)
+		m.SetMapIndex(v.Elem().FieldByName("Key"), v)
 	}
 	return nil
 }
@@ -101,6 +120,29 @@ func getErrors() Errors {
 			if !implType.AssignableTo(reqType) {
 				errs = append(errs, &EIncompatibleTypes{req, impls[0]})
 			}
+		}
+	}
+	if errsToAppend := getProvidedNotUsedErrors(provided); len(errsToAppend) > 0 {
+		errs = append(errs, errsToAppend)
+	}
+	if errsToAppend := getProvidedNotUsedErrors(providedMapValues); len(errsToAppend) > 0 {
+		errs = append(errs, errsToAppend)
+	}
+	return errs
+}
+
+func getProvidedNotUsedErrors(provided map[interface{}][]srcElem) Errors {
+	var errs Errors
+	for provVar, provSrcs := range provided {
+		var found = false
+		for _, reqVar := range required {
+			if reqVar.elem == provVar {
+				found = true
+				break
+			}
+		}
+		if !found {
+			errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
 		}
 	}
 	return errs
