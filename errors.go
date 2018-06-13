@@ -19,7 +19,7 @@ type Errors []error
 // EMultipleImplementations occurs if there are more than one provided implementation for one type
 type EMultipleImplementations struct {
 	req   srcElem
-	impls []srcElem
+	provs []srcElem
 }
 
 // EImplementationNotProvided error occurs if there is no implementation provided for a type
@@ -35,12 +35,17 @@ type ENonAssignableRequirement struct {
 // EIncompatibleTypes error occurs if type of a requirement is incompatible to provided implementation
 type EIncompatibleTypes struct {
 	req  srcElem
-	impl srcElem
+	prov srcElem
+}
+
+// EProvidedNotUsed error occurs if something is provided but not required
+type EProvidedNotUsed struct {
+	prov srcElem
 }
 
 func (e *EMultipleImplementations) Error() string {
 	var buffer bytes.Buffer
-	for _, impl := range e.impls {
+	for _, impl := range e.provs {
 		buffer.WriteString(fmt.Sprintf("\t%s:%d\r\n", impl.file, impl.line))
 	}
 
@@ -57,7 +62,11 @@ func (e *ENonAssignableRequirement) Error() string {
 
 func (e *EIncompatibleTypes) Error() string {
 	return fmt.Sprintf("Incompatible types: %s required at %s:%d, %s provided at %s:%d", reflect.TypeOf(e.req.elem), e.req.file, e.req.line,
-		reflect.TypeOf(e.impl.elem), e.impl.file, e.impl.line)
+		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
+}
+
+func (e *EProvidedNotUsed) Error() string {
+	return fmt.Sprintf("Provided at %s:%d but not used", e.prov.file, e.prov.line)
 }
 
 func (e Errors) Error() string {
