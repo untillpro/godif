@@ -263,8 +263,9 @@ func TestDataInject(t * testing.T) {
 
 func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
 	var injected map[string]int
-	_, file, line, _ := runtime.Caller(0)
+	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&injected)
+	_, provFile, provLine, _ := runtime.Caller(0)
 	Provide(&injected, make([]int, 0))
 
 	errs := ResolveAll()
@@ -274,8 +275,10 @@ func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypes); ok {
 		fmt.Println(e)
-		assert.Equal(t, file, e.req.file)
-		assert.Equal(t, line+1, e.req.line)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, provFile, e.prov.file)
+		assert.Equal(t, provLine+1, e.prov.line)
 	} else {
 		t.Fatal()
 	}
@@ -288,10 +291,15 @@ func TestProvideMapValue(t *testing.T) {
 		Key string
 	}
 
-	var bucketDefs map[string]*bucketDef
+	var bucketDefsPtr map[string]*bucketDef
+	var bucketDefs map[string]bucketDef
 
-	var bucketService = &bucketDef{Key: "service"}
-	Provide(&bucketDefs, map[string]*bucketDef{})
+
+	var bucketServicePtr = &bucketDef{Key: "service"}
+	var bucketService = bucketDef{Key: "service"}
+	Provide(&bucketDefsPtr, map[string]*bucketDef{})
+	Require(&bucketDefsPtr)
+	Provide(&bucketDefs, map[string]bucketDef{})
 	Require(&bucketDefs)
 
 	errs := ResolveAll()
@@ -299,14 +307,52 @@ func TestProvideMapValue(t *testing.T) {
 		t.Fatal(errs)
 	}
 	assert.Empty(t, bucketDefs)
+	assert.Empty(t, bucketDefsPtr)
 
 	ProvideMapValue(&bucketDefs, bucketService)
+	ProvideMapValue(&bucketDefsPtr, bucketServicePtr)
 	errs = ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
 	}
 	assert.Equal(t, 1, len(bucketDefs))
 	assert.Equal(t, bucketService, bucketDefs["service"])
+	assert.Equal(t, 1, len(bucketDefsPtr))
+	assert.Equal(t, bucketServicePtr, bucketDefsPtr["service"])
+}
+
+func TestProvideMapValueIncompatibleTypes(t *testing.T) {
+	Reset()
+	type bucketDef struct {
+		Key string
+	}
+	type anotherType struct {
+		Key string
+	}
+
+	var bucketDefsPtr map[string]*bucketDef
+
+	var bucketServicePtr = &anotherType{Key: "service"}
+	Provide(&bucketDefsPtr, map[string]*bucketDef{})
+	_, reqFile, reqLine, _ := runtime.Caller(0)
+	Require(&bucketDefsPtr)
+	_, provFile, provLine, _ := runtime.Caller(0)
+	ProvideMapValue(&bucketDefsPtr, bucketServicePtr)
+	
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+
+	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+		fmt.Println(e)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, provFile, e.prov.file)
+		assert.Equal(t, provLine+1, e.prov.line)
+	} else {
+		t.Fatal()
+	}
 }
 
 func f(x int, y int) int {

@@ -83,7 +83,12 @@ func ResolveAll() Errors {
 		fmt.Println(ptrToVar)
 		m := reflect.ValueOf(ptrToVar).Elem()
 		fmt.Println(m)
-		m.SetMapIndex(v.Elem().FieldByName("Key"), v)
+		if v.Kind() == reflect.Ptr {
+			m.SetMapIndex(v.Elem().FieldByName("Key"), v)
+		} else if v.Kind() == reflect.Struct {
+			m.SetMapIndex(v.FieldByName("Key"), v)
+		}
+		
 	}
 	return nil
 }
