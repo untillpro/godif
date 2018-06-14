@@ -78,7 +78,7 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 	_, implFileF, implLineF, _ := runtime.Caller(0)
 	Provide(&injectedFunc1, f)
 	_, implFileF2, implLineF2, _ := runtime.Caller(0)
-	Provide(&injectedFunc1, f2)
+	Provide(&injectedFunc1, f3)
 
 	errs := ResolveAll()
 	if len(errs) != 1 {
@@ -107,7 +107,7 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 	Require(&injectedFunc1)
 	Require(&injectedFunc2)
 	Provide(&injectedFunc1, f)
-	Provide(&injectedFunc1, f2)
+	Provide(&injectedFunc1, f3)
 
 	errs := ResolveAll()
 	if len(errs) != 2 {
@@ -146,28 +146,7 @@ func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
 		assert.Equal(t, file, e.req.file)
 		assert.Equal(t, line+1, e.req.line)
 	} else {
-		t.Fatal()
-	}
-}
-
-func TestErrorOnNonAssignableRequirementWrongKind(t *testing.T) {
-	Reset()
-	var injected *func(x int, y int) int
-
-	_, file, line, _ := runtime.Caller(0)
-	Require(f)
-	Provide(&injected, f)
-	errs := ResolveAll()
-	if len(errs) != 1 {
 		t.Fatal(errs)
-	}
-
-	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
-		fmt.Println(e)
-		assert.Equal(t, file, e.req.file)
-		assert.Equal(t, line+1, e.req.line)
-	} else {
-		t.Fatal()
 	}
 }
 
@@ -237,19 +216,23 @@ func TestErrorOnProvidedButNotUsed(t *testing.T) {
 	errs := ResolveAll()
 	assert.Equal(t, 1, len(errs))
 
+	fmt.Println(errs[0])
+
 	if e, ok := errs[0].(*EProvidedNotUsed); ok {
 		assert.Equal(t, implFile, e.prov.file)
 		assert.Equal(t, implLine+1, e.prov.line)
 	} else {
-		t.Fatal()
+		t.Fatal(errs)
 	}
 
 	Require(&injected)
+	errs = ResolveAll()
 
 	assert.Nil(t, errs)
 }
 
 func TestDataInject(t * testing.T) {
+	Reset()
 	var injected map[string]int
 	Require(&injected)
 	Provide(&injected, make(map[string]int))
@@ -262,6 +245,7 @@ func TestDataInject(t * testing.T) {
 }
 
 func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
+	Reset()
 	var injected map[string]int
 	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&injected)
@@ -351,7 +335,7 @@ func TestProvideMapValueIncompatibleTypes(t *testing.T) {
 		assert.Equal(t, provFile, e.prov.file)
 		assert.Equal(t, provLine+1, e.prov.line)
 	} else {
-		t.Fatal()
+		t.Fatal(errs)
 	}
 }
 

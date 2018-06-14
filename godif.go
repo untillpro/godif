@@ -14,18 +14,17 @@ import (
 )
 
 type srcElem struct {
-	file string
-	line int
-	elem interface{}
+	file   string
+	line   int
+	elem   interface{}
+	isData bool
 }
 
-var provided map[interface{}][]srcElem
-var providedMapValues map[interface{}][]srcElem
 var required []srcElem
+var provided map[interface{}][]srcElem
 
 func init() {
 	provided = make(map[interface{}][]srcElem)
-	providedMapValues = make(map[interface{}][]srcElem)
 }
 
 // Reset clears all assignations
@@ -48,19 +47,19 @@ func Reset() {
 // ProvideMapValue registers map value. pData must have a Key field
 func ProvideMapValue(pMap interface{}, pData interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	providedMapValues[pMap] = append(providedMapValues[pMap], srcElem{file, line, pData})
+	provided[pMap] = append(provided[pMap], srcElem{file, line, pData, true})
 }
 
 // Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation})
+	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation, false})
 }
 
 // Require registers dep
 func Require(toInject interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	required = append(required, srcElem{file, line, toInject})
+	required = append(required, srcElem{file, line, toInject, false})
 }
 
 // ResolveAll all deps
@@ -71,25 +70,23 @@ func ResolveAll() Errors {
 	}
 
 	for _, reqVar := range required {
-		v := reflect.ValueOf(reqVar.elem).Elem()
-		impl := provided[reqVar.elem]
-		v.Set(reflect.ValueOf(impl[0].elem))
+		impls := provided[reqVar.elem]
+		for _, impl := range impls {
+			if impl.isData {
+				data := reflect.ValueOf(impl.elem)
+				reqValue := reflect.ValueOf(reqVar.elem).Elem()
+				if data.Kind() == reflect.Ptr {
+					reqValue.SetMapIndex(data.Elem().FieldByName("Key"), data)
+				} else if data.Kind() == reflect.Struct {
+					reqValue.SetMapIndex(data.FieldByName("Key"), data)
+				}
+			} else {
+				reqValue := reflect.ValueOf(reqVar.elem).Elem()
+				reqValue.Set(reflect.ValueOf(impl.elem))
+			}
+		}
 	}
 
-	for ptrToVar, mapValues := range providedMapValues {
-		v := reflect.ValueOf(mapValues[0].elem) // is struct bucketDef
-		fmt.Println(v.Type())
-		fmt.Println(v.Kind())
-		fmt.Println(ptrToVar)
-		m := reflect.ValueOf(ptrToVar).Elem()
-		fmt.Println(m)
-		if v.Kind() == reflect.Ptr {
-			m.SetMapIndex(v.Elem().FieldByName("Key"), v)
-		} else if v.Kind() == reflect.Struct {
-			m.SetMapIndex(v.FieldByName("Key"), v)
-		}
-		
-	}
 	return nil
 }
 
@@ -97,12 +94,12 @@ func getErrors() Errors {
 	var errs Errors
 	for _, req := range required {
 
-		kind := reflect.ValueOf(req.elem).Kind()
+		//kind := reflect.ValueOf(req.elem).Kind()
 
-		if kind != reflect.Ptr {
-			errs = append(errs, &ENonAssignableRequirement{req})
-			continue
-		}
+		// if kind != reflect.Ptr {
+		// 	errs = append(errs, &ENonAssignableRequirement{req})
+		// 	continue
+		// }
 
 		impls := provided[req.elem]
 
@@ -110,7 +107,7 @@ func getErrors() Errors {
 			errs = append(errs, &EImplementationNotProvided{req})
 		}
 
-		if len(impls) > 1 {
+		if len(impls) > 2 || (len(impls) == 2 && impls[0].isData == impls[1].isData) {
 			errs = append(errs, &EMultipleImplementations{req, impls})
 		}
 
@@ -119,25 +116,24 @@ func getErrors() Errors {
 			errs = append(errs, &ENonAssignableRequirement{req})
 		}
 
-		if len(impls) == 1 {
+		for _, impl := range impls {
 			reqType := reflect.TypeOf(req.elem).Elem()
-			implType := reflect.TypeOf(impls[0].elem)
-			if !implType.AssignableTo(reqType) {
-				errs = append(errs, &EIncompatibleTypes{req, impls[0]})
+			fmt.Println(reqType)
+			implType := reflect.TypeOf(impl.elem)
+			fmt.Println(implType)
+			fmt.Println(reqType.Kind())
+			if impl.isData {
+				if !implType.AssignableTo(reqType.Elem()) {
+					errs = append(errs, &EIncompatibleTypes{req, impl})
+				}
+			} else {
+				if !implType.AssignableTo(reqType) {
+					errs = append(errs, &EIncompatibleTypes{req, impls[0]})
+				}
 			}
+			
 		}
 	}
-	if errsToAppend := getProvidedNotUsedErrors(provided); len(errsToAppend) > 0 {
-		errs = append(errs, errsToAppend)
-	}
-	if errsToAppend := getProvidedNotUsedErrors(providedMapValues); len(errsToAppend) > 0 {
-		errs = append(errs, errsToAppend)
-	}
-	return errs
-}
-
-func getProvidedNotUsedErrors(provided map[interface{}][]srcElem) Errors {
-	var errs Errors
 	for provVar, provSrcs := range provided {
 		var found = false
 		for _, reqVar := range required {
@@ -150,5 +146,6 @@ func getProvidedNotUsedErrors(provided map[interface{}][]srcElem) Errors {
 			errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
 		}
 	}
+
 	return errs
 }
