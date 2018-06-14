@@ -13,7 +13,7 @@ var bucketService = &ikvdb.BucketDef{Key: "service"}
 // Declare requires Put function and provides `bucketStart` definition
 func Declare() {
 	godif.Require(&ikvdb.Put)
-	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService)
+	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService.Key, bucketService)
 }
 
 type ctxKey string
