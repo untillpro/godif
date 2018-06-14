@@ -43,6 +43,12 @@ type EProvidedNotUsed struct {
 	prov srcElem
 }
 
+// EMultipleValues error occurs if more than one value is provided per one key by ProvideMapValue() call
+type EMultipleValues struct {
+	req   srcElem
+	provs []srcElem
+}
+
 func (e *EMultipleImplementations) Error() string {
 	var buffer bytes.Buffer
 	for _, impl := range e.provs {
@@ -67,6 +73,15 @@ func (e *EIncompatibleTypes) Error() string {
 
 func (e *EProvidedNotUsed) Error() string {
 	return fmt.Sprintf("Provided at %s:%d but not used", e.prov.file, e.prov.line)
+}
+
+func (e *EMultipleValues) Error() string {
+	var buffer bytes.Buffer
+	for _, impl := range e.provs {
+		buffer.WriteString(fmt.Sprintf("\t%s:%d\r\n", impl.file, impl.line))
+	}
+
+	return fmt.Sprintf("Requirement at %s:%d has multiple values provided for one key at:\r\n%s", e.req.file, e.req.line, buffer.String())
 }
 
 func (e Errors) Error() string {
