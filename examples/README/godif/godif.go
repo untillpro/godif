@@ -14,5 +14,5 @@ func ResolveAll() []error {
 }
 
 // ProvideMapValue registers map value. pData must have a Key field
-func ProvideMapValue(pMap interface{}, pData interface{}) {
+func ProvideMapValue(pMap interface{}, key interface{}, pData interface{}) {
 }

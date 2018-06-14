@@ -76,11 +76,7 @@ var bucketService = &ikvdb.BucketDef{Key: "service"}
 // Declare requires Put function and provides `bucketService` definition
 func Declare() {
 	godif.Require(&ikvdb.Put)
-	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService) // чтобы все произошло автоматически при резолве. Если после ResolveAll, то надо будет еще у всех остальных тоже применять
-	// создаст ikvdb.BucketDefs тот, кто его провайдит выше
-	// класть в мапу будем по ключу. Ключ получить так: взять из bucketService -> reflection -> to struct -> take value of "Key" field
-	// что есть value?
-
+	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService.Key, bucketService)
 }
 
 type ctxKey string
