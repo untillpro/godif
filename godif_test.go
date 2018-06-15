@@ -84,6 +84,7 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, injectedFunc1)
 
 	if e, ok := errs[0].(*EMultipleImplementations); ok {
 		fmt.Println(e)
@@ -113,6 +114,8 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 	if len(errs) != 2 {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, injectedFunc1)
+	assert.Nil(t, injectedFunc2)
 
 	fmt.Println(errs)
 
@@ -140,6 +143,7 @@ func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, injectedFunc)
 
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
 		fmt.Println(e)
@@ -168,21 +172,6 @@ func TestMatchReqAndImplByPointer(t *testing.T) {
 	assert.Equal(t, 5, injected2(2, 3))
 }
 
-func TestDoNotResolveAtAllOnAnyError(t *testing.T) {
-	var injected1 func(x int, y int) int
-	var injected2 func(x int, y int) int
-
-	Require(&injected1)
-	Require(&injected2)
-	Provide(&injected1, f)
-
-	errs := ResolveAll()
-	assert.Equal(t, 1, len(errs))
-
-	assert.Nil(t, injected1)
-	assert.Nil(t, injected2)
-}
-
 func TestErrorOnIncompatibleTypes(t *testing.T) {
 	Reset()
 	var injected func(x int, y int) int
@@ -193,7 +182,10 @@ func TestErrorOnIncompatibleTypes(t *testing.T) {
 	Provide(&injected, f2)
 
 	errs := ResolveAll()
-	assert.Equal(t, 1, len(errs))
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, injected)
 
 	if e, ok := errs[0].(*EIncompatibleTypes); ok {
 		fmt.Println(e)
@@ -214,7 +206,10 @@ func TestErrorOnProvidedButNotUsed(t *testing.T) {
 	Provide(&injected, f)
 
 	errs := ResolveAll()
-	assert.Equal(t, 1, len(errs))
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, injected)
 
 	fmt.Println(errs[0])
 
@@ -256,6 +251,7 @@ func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, injected)
 
 	if e, ok := errs[0].(*EIncompatibleTypes); ok {
 		fmt.Println(e)
@@ -336,6 +332,7 @@ func TestProvideMapValueIncompatibleTypes(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, bucketDefsPtr)
 
 	if e, ok := errs[0].(*EIncompatibleTypes); ok {
 		fmt.Println(e)
@@ -368,6 +365,7 @@ func TestProvideMapValueErrorOnMultipleValuesPerKey(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, bucketDefs)
 
 	if e, ok := errs[0].(*EMultipleValues); ok {
 		fmt.Println(e)
