@@ -8,6 +8,7 @@
 package godif
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 )
@@ -18,16 +19,19 @@ type srcElem struct {
 	elem interface{}
 }
 
-var provided map[interface{}][]srcElem
 var required []srcElem
+var provided map[interface{}][]srcElem
+var providedMapValues map[interface{}]map[interface{}][]srcElem
 
 func init() {
 	provided = make(map[interface{}][]srcElem)
+	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
 }
 
 // Reset clears all assignations
 func Reset() {
 	provided = make(map[interface{}][]srcElem)
+	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
 	if required != nil {
 		for _, r := range required {
 			v := reflect.ValueOf(r.elem)
@@ -40,6 +44,16 @@ func Reset() {
 		}
 		required = make([]srcElem, 0)
 	}
+}
+
+// ProvideMapValue registers data which will be set on pMap map by "key" key on ResolveAll() call
+func ProvideMapValue(pMap interface{}, key interface{}, data interface{}) {
+	_, file, line, _ := runtime.Caller(1)
+	if providedMapValues[pMap] == nil {
+		providedMapValues[pMap] = make(map[interface{}][]srcElem)
+		fmt.Println(providedMapValues[pMap])
+	}
+	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], srcElem{file, line, data})
 }
 
 // Provide registers implementation of ref type
@@ -62,23 +76,26 @@ func ResolveAll() Errors {
 	}
 
 	for _, reqVar := range required {
-		v := reflect.ValueOf(reqVar.elem).Elem()
-		impl := provided[reqVar.elem]
-		v.Set(reflect.ValueOf(impl[0].elem))
+		impls := provided[reqVar.elem]
+		reqValue := reflect.ValueOf(reqVar.elem).Elem()
+		reqValue.Set(reflect.ValueOf(impls[0].elem))
 	}
+	for _, reqVar := range required {
+		mapToAppend := providedMapValues[reqVar.elem]
+		for k, v := range mapToAppend {
+			dataValue := reflect.ValueOf(v[0].elem)
+			reqValue := reflect.ValueOf(reqVar.elem).Elem()
+			keyValue := reflect.ValueOf(k)
+			reqValue.SetMapIndex(keyValue, dataValue)
+		}
+	}
+
 	return nil
 }
 
 func getErrors() Errors {
 	var errs Errors
 	for _, req := range required {
-
-		kind := reflect.ValueOf(req.elem).Kind()
-
-		if kind != reflect.Ptr {
-			errs = append(errs, &ENonAssignableRequirement{req})
-			continue
-		}
 
 		impls := provided[req.elem]
 
@@ -95,13 +112,38 @@ func getErrors() Errors {
 			errs = append(errs, &ENonAssignableRequirement{req})
 		}
 
-		if len(impls) == 1 {
-			reqType := reflect.TypeOf(req.elem).Elem()
-			implType := reflect.TypeOf(impls[0].elem)
+		reqType := reflect.TypeOf(req.elem).Elem()
+
+		for _, impl := range impls {
+			implType := reflect.TypeOf(impl.elem)
 			if !implType.AssignableTo(reqType) {
 				errs = append(errs, &EIncompatibleTypes{req, impls[0]})
 			}
 		}
+
+		for _, v := range providedMapValues[req.elem] {
+			if len(v) > 1 {
+				errs = append(errs, &EMultipleValues{req, v})
+			} else {
+				vType := reflect.TypeOf(v[0].elem)
+				if !vType.AssignableTo(reqType.Elem()) {
+					errs = append(errs, &EIncompatibleTypes{req, v[0]})
+				}
+			}
+		}
 	}
+	for provVar, provSrcs := range provided {
+		var found = false
+		for _, reqVar := range required {
+			if reqVar.elem == provVar {
+				found = true
+				break
+			}
+		}
+		if !found {
+			errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
+		}
+	}
+
 	return errs
 }
