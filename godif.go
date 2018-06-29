@@ -8,6 +8,7 @@
 package godif
 
 import (
+	"fmt"
 	"reflect"
 	"runtime"
 )
