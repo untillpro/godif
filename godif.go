@@ -8,7 +8,6 @@
 package godif
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 )
@@ -49,7 +48,6 @@ func provideMapValue(pMap interface{}, key interface{}, data interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	if providedMapValues[pMap] == nil {
 		providedMapValues[pMap] = make(map[interface{}][]srcElem)
-		fmt.Println(providedMapValues[pMap])
 	}
 	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], srcElem{file, line, data})
 }
