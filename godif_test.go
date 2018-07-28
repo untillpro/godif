@@ -16,7 +16,6 @@ import (
 )
 
 func TestBasicUsage(t *testing.T) {
-	Reset()
 	var injectedFunc func(x int, y int) int
 
 	errs := ResolveAll()
@@ -56,8 +55,8 @@ func TestBasicUsage(t *testing.T) {
 }
 
 func TestExplicitTypeInject(t *testing.T) {
-	type Func1Type = func(x int, y int) int
 	Reset()
+	type Func1Type = func(x int, y int) int
 	var inject Func1Type
 
 	Require(&inject)

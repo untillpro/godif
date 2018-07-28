@@ -23,13 +23,16 @@ var provided map[interface{}][]srcElem
 var providedMapValues map[interface{}]map[interface{}][]srcElem
 
 func init() {
+	createVars()
+}
+
+func createVars() {
 	provided = make(map[interface{}][]srcElem)
 	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
 }
 
 func reset() {
-	provided = make(map[interface{}][]srcElem)
-	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
+	createVars()
 	if required != nil {
 		for _, r := range required {
 			v := reflect.ValueOf(r.elem)
