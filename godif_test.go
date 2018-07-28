@@ -320,12 +320,12 @@ func TestProvideMapValueIncompatibleTypes(t *testing.T) {
 
 	var bucketDefsPtr map[string]*bucketDef
 
-	var bucketServicePtr = &anotherType{Value: "val"}
+	var anotherPtr = &anotherType{Value: "val"}
 	Provide(&bucketDefsPtr, map[string]*bucketDef{})
-	_, reqFile, reqLine, _ := runtime.Caller(0)
-	Require(&bucketDefsPtr)
 	_, provFile, provLine, _ := runtime.Caller(0)
-	ProvideMapValue(&bucketDefsPtr, "key", bucketServicePtr)
+	ProvideMapValue(&bucketDefsPtr, "key", anotherPtr)
+
+	// TODO неверно req line ?
 
 	errs := ResolveAll()
 	if len(errs) != 1 {
@@ -335,11 +335,46 @@ func TestProvideMapValueIncompatibleTypes(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypes); ok {
 		fmt.Println(e)
-		assert.Equal(t, reqFile, e.req.file)
-		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, provFile, e.req.file)
+		assert.Equal(t, provLine+1, e.req.line)
 		assert.Equal(t, provFile, e.prov.file)
 		assert.Equal(t, provLine+1, e.prov.line)
 	} else {
+		t.Fatal(errs)
+	}
+}
+
+func TestMultipleRequirements(t *testing.T) {
+	Reset()
+	type myType struct {
+		Value string
+	}
+
+	var mt myType
+	Require(&mt)
+	//	Require(&mt)
+	Provide(&mt, myType{Value: "name"})
+	Provide(&mt, myType{Value: "name2"})
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+}
+
+func TestMultipleMapRequirements(t *testing.T) {
+	Reset()
+	type bucketDef struct {
+		Value string
+	}
+
+	var bucketDefs map[string]*bucketDef
+	Provide(&bucketDefs, map[string]*bucketDef{})
+	Require(&bucketDefs)
+	Require(&bucketDefs)
+	ProvideMapValue(&bucketDefs, "key", &bucketDef{"val2"})
+
+	errs := ResolveAll()
+	if len(errs) != 0 {
 		t.Fatal(errs)
 	}
 }
@@ -354,6 +389,7 @@ func TestProvideMapValueErrorOnMultipleValuesPerKey(t *testing.T) {
 
 	Provide(&bucketDefs, map[string]*bucketDef{})
 	_, reqFile, reqLine, _ := runtime.Caller(0)
+	//Require(&bucketDefs)
 	Require(&bucketDefs)
 	_, implFileF, implLineF, _ := runtime.Caller(0)
 	ProvideMapValue(&bucketDefs, "key", &bucketDef{"val1"})

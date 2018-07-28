@@ -18,35 +18,35 @@ type Errors []error
 
 // EMultipleImplementations occurs if there are more than one provided implementation for one type
 type EMultipleImplementations struct {
-	req   srcElem
-	provs []srcElem
+	req   *srcElem
+	provs []*srcElem
 }
 
 // EImplementationNotProvided error occurs if there is no implementation provided for a type
 type EImplementationNotProvided struct {
-	req srcElem
+	req *srcElem
 }
 
 // ENonAssignableRequirement error occurs if non-assignable (e.g. not variable) requirement is declared
 type ENonAssignableRequirement struct {
-	req srcElem
+	req *srcElem
 }
 
 // EIncompatibleTypes error occurs if type of a requirement is incompatible to provided implementation
 type EIncompatibleTypes struct {
-	req  srcElem
-	prov srcElem
+	req  *srcElem
+	prov *srcElem
 }
 
 // EProvidedNotUsed error occurs if something is provided but not required
 type EProvidedNotUsed struct {
-	prov srcElem
+	prov *srcElem
 }
 
 // EMultipleValues error occurs if more than one value is provided per one key by ProvideMapValue() call
 type EMultipleValues struct {
-	req   srcElem
-	provs []srcElem
+	req   *srcElem
+	provs []*srcElem
 }
 
 func (e *EMultipleImplementations) Error() string {
@@ -59,7 +59,7 @@ func (e *EMultipleImplementations) Error() string {
 }
 
 func (e *EImplementationNotProvided) Error() string {
-	return fmt.Sprintf("Requirement at %s:%d is not provided", e.req.file, e.req.line)
+	return fmt.Sprintf("Requirement %T at %s:%d is not provided", e.req.elem, e.req.file, e.req.line)
 }
 
 func (e *ENonAssignableRequirement) Error() string {
@@ -72,7 +72,7 @@ func (e *EIncompatibleTypes) Error() string {
 }
 
 func (e *EProvidedNotUsed) Error() string {
-	return fmt.Sprintf("Provided at %s:%d but not used", e.prov.file, e.prov.line)
+	return fmt.Sprintf("%T Provided at %s:%d but not used", e.prov.elem, e.prov.file, e.prov.line)
 }
 
 func (e *EMultipleValues) Error() string {
@@ -81,7 +81,7 @@ func (e *EMultipleValues) Error() string {
 		buffer.WriteString(fmt.Sprintf("\t%s:%d\r\n", impl.file, impl.line))
 	}
 
-	return fmt.Sprintf("Requirement at %s:%d has multiple values provided at:\r\n%s", e.req.file, e.req.line, buffer.String())
+	return fmt.Sprintf("Requirement %T at %s:%d has multiple values provided at:\r\n%s", e.req.elem, e.req.file, e.req.line, buffer.String())
 }
 
 func (e Errors) Error() string {

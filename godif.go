@@ -18,17 +18,17 @@ type srcElem struct {
 	elem interface{}
 }
 
-var required []srcElem
-var provided map[interface{}][]srcElem
-var providedMapValues map[interface{}]map[interface{}][]srcElem
+var required []*srcElem
+var provided map[interface{}][]*srcElem
+var providedMapValues map[interface{}]map[interface{}][]*srcElem
 
 func init() {
 	createVars()
 }
 
 func createVars() {
-	provided = make(map[interface{}][]srcElem)
-	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
+	provided = make(map[interface{}][]*srcElem)
+	providedMapValues = make(map[interface{}]map[interface{}][]*srcElem)
 }
 
 func reset() {
@@ -43,26 +43,35 @@ func reset() {
 				}
 			}
 		}
-		required = make([]srcElem, 0)
+		required = make([]*srcElem, 0)
 	}
 }
 
+func provideSliceValue(pSlice interface{}, data interface{}) {
+
+}
+
 func provideMapValue(pMap interface{}, key interface{}, data interface{}) {
+	//requireEx(pMap, 2)
 	_, file, line, _ := runtime.Caller(1)
 	if providedMapValues[pMap] == nil {
-		providedMapValues[pMap] = make(map[interface{}][]srcElem)
+		providedMapValues[pMap] = make(map[interface{}][]*srcElem)
 	}
-	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], srcElem{file, line, data})
+	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], &srcElem{file, line, data})
 }
 
 func provide(ref interface{}, funcImplementation interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation})
+	provided[ref] = append(provided[ref], &srcElem{file, line, funcImplementation})
+}
+
+func requireEx(toInject interface{}, callerStackOffset int) {
+	_, file, line, _ := runtime.Caller(callerStackOffset)
+	required = append(required, &srcElem{file, line, toInject})
 }
 
 func require(toInject interface{}) {
-	_, file, line, _ := runtime.Caller(1)
-	required = append(required, srcElem{file, line, toInject})
+	requireEx(toInject, 2)
 }
 
 func resolveAll() Errors {
@@ -129,14 +138,13 @@ func getErrors() Errors {
 		}
 	}
 	for provVar, provSrcs := range provided {
-		var found = false
-		for _, reqVar := range required {
+		var reqVar *srcElem
+		for _, reqVar = range required {
 			if reqVar.elem == provVar {
-				found = true
 				break
 			}
 		}
-		if !found {
+		if reqVar == nil {
 			errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
 		}
 	}
