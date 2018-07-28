@@ -28,8 +28,7 @@ func init() {
 	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
 }
 
-// Reset clears all assignations
-func Reset() {
+func reset() {
 	provided = make(map[interface{}][]srcElem)
 	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
 	if required != nil {
@@ -46,8 +45,7 @@ func Reset() {
 	}
 }
 
-// ProvideMapValue registers data which will be set on pMap map by "key" key on ResolveAll() call
-func ProvideMapValue(pMap interface{}, key interface{}, data interface{}) {
+func provideMapValue(pMap interface{}, key interface{}, data interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	if providedMapValues[pMap] == nil {
 		providedMapValues[pMap] = make(map[interface{}][]srcElem)
@@ -56,20 +54,17 @@ func ProvideMapValue(pMap interface{}, key interface{}, data interface{}) {
 	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], srcElem{file, line, data})
 }
 
-// Provide registers implementation of ref type
-func Provide(ref interface{}, funcImplementation interface{}) {
+func provide(ref interface{}, funcImplementation interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation})
 }
 
-// Require registers dep
-func Require(toInject interface{}) {
+func require(toInject interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	required = append(required, srcElem{file, line, toInject})
 }
 
-// ResolveAll all deps
-func ResolveAll() Errors {
+func resolveAll() Errors {
 	errs := getErrors()
 	if len(errs) > 0 {
 		return errs
