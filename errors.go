@@ -81,7 +81,7 @@ func (e *EMultipleValues) Error() string {
 		buffer.WriteString(fmt.Sprintf("\t%s:%d\r\n", impl.file, impl.line))
 	}
 
-	return fmt.Sprintf("Requirement %T at %s:%d has multiple values provided at:\r\n%s", e.req.elem, e.req.file, e.req.line, buffer.String())
+	return fmt.Sprintf("Extension point %T at %s:%d has multiple values provided at:\r\n%s", e.req.elem, e.req.file, e.req.line, buffer.String())
 }
 
 func (e Errors) Error() string {

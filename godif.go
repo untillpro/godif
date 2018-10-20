@@ -20,7 +20,7 @@ type srcElem struct {
 
 var required []*srcElem
 var provided map[interface{}][]*srcElem
-var providedMapValues map[interface{}]map[interface{}][]*srcElem
+var extensions map[interface{}]map[interface{}][]*srcElem
 
 func init() {
 	createVars()
@@ -28,7 +28,7 @@ func init() {
 
 func createVars() {
 	provided = make(map[interface{}][]*srcElem)
-	providedMapValues = make(map[interface{}]map[interface{}][]*srcElem)
+	extensions = make(map[interface{}]map[interface{}][]*srcElem)
 }
 
 // Reset clears all assignations
@@ -48,14 +48,14 @@ func Reset() {
 	}
 }
 
-// ProvideMapValue registers data which will be set on pMap map by "key" key on ResolveAll() call
-func ProvideMapValue(pMap interface{}, key interface{}, data interface{}) {
+// ProvideExtension s.e.
+func ProvideExtension(pMap interface{}, key interface{}, extension interface{}) {
 	//requireEx(pMap, 2)
 	_, file, line, _ := runtime.Caller(1)
-	if providedMapValues[pMap] == nil {
-		providedMapValues[pMap] = make(map[interface{}][]*srcElem)
+	if extensions[pMap] == nil {
+		extensions[pMap] = make(map[interface{}][]*srcElem)
 	}
-	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], &srcElem{file, line, data})
+	extensions[pMap][key] = append(extensions[pMap][key], &srcElem{file, line, extension})
 }
 
 // Provide registers implementation of ref type
@@ -88,7 +88,7 @@ func ResolveAll() Errors {
 		reqValue.Set(reflect.ValueOf(impls[0].elem))
 	}
 	for _, reqVar := range required {
-		mapToAppend := providedMapValues[reqVar.elem]
+		mapToAppend := extensions[reqVar.elem]
 		for k, v := range mapToAppend {
 			dataValue := reflect.ValueOf(v[0].elem)
 			reqValue := reflect.ValueOf(reqVar.elem).Elem()
@@ -128,7 +128,7 @@ func getErrors() Errors {
 			}
 		}
 
-		for _, v := range providedMapValues[req.elem] {
+		for _, v := range extensions[req.elem] {
 			if len(v) > 1 {
 				errs = append(errs, &EMultipleValues{req, v})
 			} else {
