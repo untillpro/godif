@@ -8,7 +8,6 @@
 package godif
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 )
@@ -19,19 +18,22 @@ type srcElem struct {
 	elem interface{}
 }
 
-var required []srcElem
-var provided map[interface{}][]srcElem
-var providedMapValues map[interface{}]map[interface{}][]srcElem
+var required []*srcElem
+var provided map[interface{}][]*srcElem
+var providedMapValues map[interface{}]map[interface{}][]*srcElem
 
 func init() {
-	provided = make(map[interface{}][]srcElem)
-	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
+	createVars()
+}
+
+func createVars() {
+	provided = make(map[interface{}][]*srcElem)
+	providedMapValues = make(map[interface{}]map[interface{}][]*srcElem)
 }
 
 // Reset clears all assignations
 func Reset() {
-	provided = make(map[interface{}][]srcElem)
-	providedMapValues = make(map[interface{}]map[interface{}][]srcElem)
+	createVars()
 	if required != nil {
 		for _, r := range required {
 			v := reflect.ValueOf(r.elem)
@@ -42,30 +44,35 @@ func Reset() {
 				}
 			}
 		}
-		required = make([]srcElem, 0)
+		required = make([]*srcElem, 0)
 	}
 }
 
 // ProvideMapValue registers data which will be set on pMap map by "key" key on ResolveAll() call
 func ProvideMapValue(pMap interface{}, key interface{}, data interface{}) {
+	//requireEx(pMap, 2)
 	_, file, line, _ := runtime.Caller(1)
 	if providedMapValues[pMap] == nil {
-		providedMapValues[pMap] = make(map[interface{}][]srcElem)
-		fmt.Println(providedMapValues[pMap])
+		providedMapValues[pMap] = make(map[interface{}][]*srcElem)
 	}
-	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], srcElem{file, line, data})
+	providedMapValues[pMap][key] = append(providedMapValues[pMap][key], &srcElem{file, line, data})
 }
 
 // Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	provided[ref] = append(provided[ref], srcElem{file, line, funcImplementation})
+	provided[ref] = append(provided[ref], &srcElem{file, line, funcImplementation})
 }
 
 // Require registers dep
 func Require(toInject interface{}) {
-	_, file, line, _ := runtime.Caller(1)
-	required = append(required, srcElem{file, line, toInject})
+	requireEx(toInject, 2)
+}
+
+// Require registers dep
+func requireEx(toInject interface{}, callerStackOffset int) {
+	_, file, line, _ := runtime.Caller(callerStackOffset)
+	required = append(required, &srcElem{file, line, toInject})
 }
 
 // ResolveAll all deps
