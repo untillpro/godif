@@ -2,11 +2,15 @@
 
 Go dependency injection for functions (and not only...)
 
-# Usage
+# Usage Example
 
-- Package `ikvdb` declares functional interface (`Put`, `Get`) to buckets and bucket definitions holder (`BucketDefs`)
-- Package `kvdb` provides `Get`/`Put` functions and bucket definitions holder
-- Package `service` uses `Put` function and provides `startBucket ` bucket definition
+Imagine we have a functional interface to work with key-value database. Database has two methods - `Put` and `Get`. These methods works with `BucketDef`.
+
+The following example shows how to:
+
+1. Declare functional interface
+2. Implement (provide) functions
+3. Use functional interface
 
 ## 1. Declare
 
@@ -30,6 +34,8 @@ type BucketDef struct {
 var BucketDefs map[string]*BucketDef
 
 ```
+
+Package declares variables of certain types, these variablesmust be furher provided.
 
 ## 2. Provide
 
@@ -76,7 +82,7 @@ var bucketService = &ikvdb.BucketDef{Key: "service"}
 // Declare requires Put function and provides `bucketService` definition
 func Declare() {
 	godif.Require(&ikvdb.Put)
-	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService.Key, bucketService)
+	godif.ProvideExtension(&ikvdb.BucketDefs, bucketService.Key, bucketService)
 }
 
 type ctxKey string
@@ -112,6 +118,3 @@ func main() {
 	service.Start(ctx)
 }
 ```
-
-# Declare/Provide Data
-
