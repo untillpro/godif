@@ -264,7 +264,7 @@ func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
 	}
 }
 
-func TestProvideExtension(t *testing.T) {
+func TestProvideExtensionMap(t *testing.T) {
 	Reset()
 	type bucketDef struct {
 		Value string
@@ -310,7 +310,7 @@ func TestProvideExtension(t *testing.T) {
 	assert.Equal(t, bucketService, bucketDefsByKey[key{42}])
 }
 
-func TestProvideExtensionIncompatibleTypes(t *testing.T) {
+func TestProvideExtensionMapIncompatibleTypes(t *testing.T) {
 	Reset()
 	type bucketDef struct {
 		Key string
@@ -345,7 +345,7 @@ func TestProvideExtensionIncompatibleTypes(t *testing.T) {
 	}
 }
 
-func TestProvideExtensionErrorOnMultipleValuesPerKey(t *testing.T) {
+func TestProvideExtensionMapErrorOnMultipleValuesPerKey(t *testing.T) {
 	Reset()
 	type bucketDef struct {
 		Value string
@@ -379,6 +379,91 @@ func TestProvideExtensionErrorOnMultipleValuesPerKey(t *testing.T) {
 	} else {
 		t.Fatal(errs)
 	}
+}
+
+func TestProvideExtensionSlice(t *testing.T) {
+	Reset()
+	assert := assert.New(t)
+	var mySlice []string
+
+	Require(&mySlice)
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal()
+	}
+	switch errs[0].(type) {
+	case *EImplementationNotProvided:
+	default:
+		t.Fatal()
+	}
+
+	Provide(&mySlice, make([]string, 0))
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Len(mySlice, 0)
+
+	ProvideSliceElement(&mySlice, "str1")
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+
+	assert.Len(mySlice, 1)
+	assert.Equal("str1", mySlice[0])
+}
+
+func TestProvideExtenssionSliceIncompatibleTypes(t *testing.T) {
+	Reset()
+	var mySlice []string
+	_, reqFile, reqLine, _ := runtime.Caller(0)
+	Require(&mySlice)
+	Provide(&mySlice, make([]string, 0))
+	_, provFile, provLine, _ := runtime.Caller(0)
+	ProvideSliceElement(&mySlice, 1)
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal()
+	}
+	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+		fmt.Println(e)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, provLine+1, e.prov.line)
+		assert.Equal(t, provFile, e.prov.file)
+	} else {
+		t.Fatal(errs)
+	}
+}
+
+func TestMixedRequirementsTypes(t *testing.T) {
+	Reset()
+	assert := assert.New(t)
+	var injectedFunc func(x int, y int) int
+	Require(&injectedFunc)
+	Provide(&injectedFunc, f)
+
+	var bucketDefs map[string]int
+	Provide(&bucketDefs, map[string]int{})
+	Require(&bucketDefs)
+	ProvideKeyValue(&bucketDefs, "key", 1)
+
+	var mySlice []string
+	Require(&mySlice)
+	Provide(&mySlice, []string{})
+	ProvideSliceElement(&mySlice, "str1")
+
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+
+	assert.Equal(5, injectedFunc(3, 2))
+	assert.Equal(1, len(bucketDefs))
+	assert.Equal(1, bucketDefs["key"])
+	assert.Len(mySlice, 1)
+	assert.Equal("str1", mySlice[0])
 }
 
 func f(x int, y int) int {

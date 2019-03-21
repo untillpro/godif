@@ -21,6 +21,7 @@ type srcElem struct {
 var required []*srcElem
 var provided map[interface{}][]*srcElem
 var keyValues map[interface{}]map[interface{}][]*srcElem
+var sliceElements map[interface{}][]*srcElem
 
 func init() {
 	createVars()
@@ -29,6 +30,7 @@ func init() {
 func createVars() {
 	provided = make(map[interface{}][]*srcElem)
 	keyValues = make(map[interface{}]map[interface{}][]*srcElem)
+	sliceElements = make(map[interface{}][]*srcElem)
 }
 
 // Reset clears all assignations
@@ -50,7 +52,11 @@ func Reset() {
 
 // ProvideSliceElement s.e.
 func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
-
+	_, file, line, _ := runtime.Caller(1)
+	if sliceElements[pointerToSlice] == nil {
+		sliceElements[pointerToSlice] = make([]*srcElem, 0)
+	}
+	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], &srcElem{file, line, element})
 }
 
 // ProvideKeyValue s.e.
@@ -90,15 +96,27 @@ func ResolveAll() Errors {
 	for _, reqVar := range required {
 		impls := provided[reqVar.elem]
 		reqValue := reflect.ValueOf(reqVar.elem).Elem()
-		reqValue.Set(reflect.ValueOf(impls[0].elem))
-	}
-	for _, reqVar := range required {
-		mapToAppend := keyValues[reqVar.elem]
-		for k, v := range mapToAppend {
-			dataValue := reflect.ValueOf(v[0].elem)
-			reqValue := reflect.ValueOf(reqVar.elem).Elem()
-			keyValue := reflect.ValueOf(k)
-			reqValue.SetMapIndex(keyValue, dataValue)
+
+		reqKind := reflect.TypeOf(reqVar.elem).Elem().Kind()
+		switch reqKind {
+		case reflect.Func:
+			reqValue.Set(reflect.ValueOf(impls[0].elem))
+		case reflect.Map:
+			reqValue.Set(reflect.ValueOf(impls[0].elem))
+			mapToAppend := keyValues[reqVar.elem]
+			for k, v := range mapToAppend {
+				dataValue := reflect.ValueOf(v[0].elem)
+				reqValue := reflect.ValueOf(reqVar.elem).Elem()
+				keyValue := reflect.ValueOf(k)
+				reqValue.SetMapIndex(keyValue, dataValue)
+			}
+		case reflect.Slice, reflect.Array:
+			sliceToAppend := sliceElements[reqVar.elem]
+			for _, elementToAppend := range sliceToAppend {
+				dataValue := reflect.ValueOf(elementToAppend.elem)
+				reqValue := reflect.ValueOf(reqVar.elem).Elem()
+				reqValue.Set(reflect.Append(reqValue, dataValue))
+			}
 		}
 	}
 
@@ -141,6 +159,13 @@ func getErrors() Errors {
 				if !vType.AssignableTo(reqType.Elem()) {
 					errs = append(errs, &EIncompatibleTypes{req, v[0]})
 				}
+			}
+		}
+
+		for _, v := range sliceElements[req.elem] {
+			vType := reflect.TypeOf(v.elem)
+			if !vType.AssignableTo(reqType.Elem()) {
+				errs = append(errs, &EIncompatibleTypes{req, v})
 			}
 		}
 	}
