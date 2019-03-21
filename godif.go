@@ -20,7 +20,7 @@ type srcElem struct {
 
 var required []*srcElem
 var provided map[interface{}][]*srcElem
-var extensions map[interface{}]map[interface{}][]*srcElem
+var keyValues map[interface{}]map[interface{}][]*srcElem
 
 func init() {
 	createVars()
@@ -28,7 +28,7 @@ func init() {
 
 func createVars() {
 	provided = make(map[interface{}][]*srcElem)
-	extensions = make(map[interface{}]map[interface{}][]*srcElem)
+	keyValues = make(map[interface{}]map[interface{}][]*srcElem)
 }
 
 // Reset clears all assignations
@@ -48,14 +48,19 @@ func Reset() {
 	}
 }
 
-// ProvideExtension s.e.
-func ProvideExtension(pMap interface{}, key interface{}, extension interface{}) {
+// ProvideSliceElement s.e.
+func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
+
+}
+
+// ProvideKeyValue s.e.
+func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{}) {
 	//requireEx(pMap, 2)
 	_, file, line, _ := runtime.Caller(1)
-	if extensions[pMap] == nil {
-		extensions[pMap] = make(map[interface{}][]*srcElem)
+	if keyValues[pointerToMap] == nil {
+		keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
 	}
-	extensions[pMap][key] = append(extensions[pMap][key], &srcElem{file, line, extension})
+	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], &srcElem{file, line, value})
 }
 
 // Provide registers implementation of ref type
@@ -88,7 +93,7 @@ func ResolveAll() Errors {
 		reqValue.Set(reflect.ValueOf(impls[0].elem))
 	}
 	for _, reqVar := range required {
-		mapToAppend := extensions[reqVar.elem]
+		mapToAppend := keyValues[reqVar.elem]
 		for k, v := range mapToAppend {
 			dataValue := reflect.ValueOf(v[0].elem)
 			reqValue := reflect.ValueOf(reqVar.elem).Elem()
@@ -128,7 +133,7 @@ func getErrors() Errors {
 			}
 		}
 
-		for _, v := range extensions[req.elem] {
+		for _, v := range keyValues[req.elem] {
 			if len(v) > 1 {
 				errs = append(errs, &EMultipleValues{req, v})
 			} else {

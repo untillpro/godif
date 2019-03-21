@@ -2,6 +2,18 @@
 
 Go dependency injection for functions (and not only...)
 
+# Usage
+
+Provide key-value
+
+- Declare: `var MyMap map[string]int`
+- Provide : `godif.ProvideKeyValue(&MyMap, "key1", 1)`
+
+Provide slice element
+
+- Declare: `var MySlice []string`
+- Provide : `godif.ProvideSliceElement(&MySlice, "str1")`
+
 # Usage Example
 
 Imagine we have a functional interface to work with key-value database. Database has two methods - `Put` and `Get`. These methods works with `BucketDef`.
