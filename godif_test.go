@@ -295,9 +295,9 @@ func TestProvideExtension(t *testing.T) {
 	assert.Empty(t, bucketDefsPtr)
 	assert.Empty(t, bucketDefsByKey)
 
-	ProvideExtension(&bucketDefs, "key", bucketService)
-	ProvideExtension(&bucketDefsPtr, "key", bucketServicePtr)
-	ProvideExtension(&bucketDefsByKey, key{42}, bucketService)
+	ProvideKeyValue(&bucketDefs, "key", bucketService)
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
+	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
 	errs = ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
@@ -326,7 +326,7 @@ func TestProvideExtensionIncompatibleTypes(t *testing.T) {
 	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&bucketDefsPtr)
 	_, provFile, provLine, _ := runtime.Caller(0)
-	ProvideExtension(&bucketDefsPtr, "key", bucketServicePtr)
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
 
 	errs := ResolveAll()
 	if len(errs) != 1 {
@@ -357,9 +357,9 @@ func TestProvideExtensionErrorOnMultipleValuesPerKey(t *testing.T) {
 	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&bucketDefs)
 	_, implFileF, implLineF, _ := runtime.Caller(0)
-	ProvideExtension(&bucketDefs, "key", &bucketDef{"val1"})
+	ProvideKeyValue(&bucketDefs, "key", &bucketDef{"val1"})
 	_, implFileF2, implLineF2, _ := runtime.Caller(0)
-	ProvideExtension(&bucketDefs, "key", &bucketDef{"val2"})
+	ProvideKeyValue(&bucketDefs, "key", &bucketDef{"val2"})
 
 	errs := ResolveAll()
 	if len(errs) != 1 {
