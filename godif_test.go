@@ -345,6 +345,76 @@ func TestProvideExtensionMapIncompatibleTypes(t *testing.T) {
 	}
 }
 
+func TestProvideExtensionMapAppendSliceIncompatibleTypes(t *testing.T) {
+	Reset()
+	type bucketDef struct {
+		Key string
+	}
+	type anotherType struct {
+		Value string
+	}
+
+	var bucketDefsPtr map[string][]*bucketDef
+
+	var bucketServicePtr = &anotherType{Value: "val"}
+	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
+	_, reqFile, reqLine, _ := runtime.Caller(0)
+	Require(&bucketDefsPtr)
+	_, provFile, provLine, _ := runtime.Caller(0)
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
+
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, bucketDefsPtr)
+
+	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+		fmt.Println(e)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, provFile, e.prov.file)
+		assert.Equal(t, provLine+1, e.prov.line)
+	} else {
+		t.Fatal(errs)
+	}
+}
+
+func TestProvideExtensionMapSetSliceIncompatibleTypes(t *testing.T) {
+	Reset()
+	type bucketDef struct {
+		Key string
+	}
+	type anotherType struct {
+		Value string
+	}
+
+	var bucketDefsPtr map[string][]*bucketDef
+
+	var bucketServicePtr = &anotherType{Value: "val"}
+	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
+	_, reqFile, reqLine, _ := runtime.Caller(0)
+	Require(&bucketDefsPtr)
+	_, provFile, provLine, _ := runtime.Caller(0)
+	ProvideKeyValue(&bucketDefsPtr, "key", []*anotherType{bucketServicePtr})
+
+	errs := ResolveAll()
+	if len(errs) != 1 {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, bucketDefsPtr)
+
+	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+		fmt.Println(e)
+		assert.Equal(t, reqFile, e.req.file)
+		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, provFile, e.prov.file)
+		assert.Equal(t, provLine+1, e.prov.line)
+	} else {
+		t.Fatal(errs)
+	}
+}
+
 func TestProvideExtensionMapErrorOnMultipleValuesPerKey(t *testing.T) {
 	Reset()
 	type bucketDef struct {
@@ -435,6 +505,204 @@ func TestProvideExtenssionSliceIncompatibleTypes(t *testing.T) {
 	} else {
 		t.Fatal(errs)
 	}
+}
+
+func TestProvideExtensionMapSetSlice(t *testing.T) {
+	Reset()
+	assert := assert.New(t)
+
+	type bucketDef struct {
+		Value string
+	}
+
+	type key struct {
+		keyValue int
+	}
+
+	var intMap map[string][]int
+	var intMapPtr map[string][]*int
+	var bucketDefsPtr map[string][]*bucketDef
+	var bucketDefs map[string][]bucketDef
+	var bucketDefsByKey map[key][]bucketDef
+
+	var bucketServicePtr1 = &bucketDef{Value: "val1"}
+	var bucketServicePtr2 = &bucketDef{Value: "val2"}
+	var bucketService = bucketDef{Value: "val"}
+
+	Provide(&intMap, map[string][]int{})
+	Require(&intMap)
+	Provide(&intMapPtr, map[string][]*int{})
+	Require(&intMapPtr)
+	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
+	Require(&bucketDefsPtr)
+	Provide(&bucketDefs, map[string][]bucketDef{})
+	Require(&bucketDefs)
+	Provide(&bucketDefsByKey, map[key][]bucketDef{})
+	Require(&bucketDefsByKey)
+
+	val1 := 3
+	val2 := 4
+	ProvideKeyValue(&intMap, "str", []int{1, 2})
+	ProvideKeyValue(&intMapPtr, "str", []*int{&val1, &val2})
+	ProvideKeyValue(&bucketDefs, "key", []bucketDef{bucketService})
+	ProvideKeyValue(&bucketDefsPtr, "key", []*bucketDef{bucketServicePtr1, bucketServicePtr2})
+	ProvideKeyValue(&bucketDefsByKey, key{42}, []bucketDef{bucketService})
+
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Len(intMap, 1)
+	assert.Len(intMap["str"], 2)
+	assert.Len(intMapPtr, 1)
+	assert.Len(intMapPtr["str"], 2)
+	assert.Equal(1, intMap["str"][0])
+	assert.Equal(2, intMap["str"][1])
+	assert.Equal(3, *intMapPtr["str"][0])
+	assert.Equal(4, *intMapPtr["str"][1])
+	assert.Len(bucketDefs, 1)
+	assert.Len(bucketDefs["key"], 1)
+	assert.Equal(bucketService, bucketDefs["key"][0])
+	assert.Len(bucketDefsPtr, 1)
+	assert.Len(bucketDefsPtr["key"], 2)
+	assert.Equal(bucketServicePtr1, bucketDefsPtr["key"][0])
+	assert.Equal(bucketServicePtr2, bucketDefsPtr["key"][1])
+	assert.Len(bucketDefsByKey, 1)
+	assert.Len(bucketDefsByKey[key{42}], 1)
+	assert.Equal(bucketService, bucketDefsByKey[key{42}][0])
+}
+
+func TestProvideExtensionMapSetSliceMultipleValuesError(t *testing.T) {
+	Reset()
+
+	type bucketDef struct {
+		Value string
+	}
+
+	type key struct {
+		keyValue int
+	}
+
+	var intMap map[string][]int
+	var intMapPtr map[string][]*int
+	var bucketDefsPtr map[string][]*bucketDef
+	var bucketDefs map[string][]bucketDef
+	var bucketDefsByKey map[key][]bucketDef
+
+	var bucketServicePtr1 = &bucketDef{Value: "val1"}
+	var bucketService = bucketDef{Value: "val"}
+
+	Provide(&intMap, map[string][]int{})
+	Require(&intMap)
+	Provide(&intMapPtr, map[string][]*int{})
+	Require(&intMapPtr)
+	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
+	Require(&bucketDefsPtr)
+	Provide(&bucketDefs, map[string][]bucketDef{})
+	Require(&bucketDefs)
+	Provide(&bucketDefsByKey, map[key][]bucketDef{})
+	Require(&bucketDefsByKey)
+
+	val1 := 3
+	val2 := 4
+	ProvideKeyValue(&intMap, "str", []int{2})
+	ProvideKeyValue(&intMap, "str", 1)
+	ProvideKeyValue(&intMapPtr, "str", &val1)
+	ProvideKeyValue(&intMapPtr, "str", []*int{&val2})
+	ProvideKeyValue(&bucketDefs, "key", bucketService)
+	ProvideKeyValue(&bucketDefs, "key", []bucketDef{bucketService})
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr1)
+	ProvideKeyValue(&bucketDefsPtr, "key", []*bucketDef{bucketServicePtr1})
+	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
+	ProvideKeyValue(&bucketDefsByKey, key{42}, []bucketDef{bucketService})
+	errs := ResolveAll()
+	if errs == nil {
+		t.Fatal()
+	}
+	for _, err := range errs {
+		if _, ok := err.(*EMultipleValues); !ok {
+			t.Fatal(err)
+		}
+	}
+	assert.Len(t, errs, 5)
+}
+
+func TestProvideExtensionMapAppendSlice(t *testing.T) {
+	Reset()
+	assert := assert.New(t)
+
+	type bucketDef struct {
+		Value string
+	}
+
+	type key struct {
+		keyValue int
+	}
+
+	var intMap map[string][]int
+	var intMapPtr map[string][]*int
+	var bucketDefsPtr map[string][]*bucketDef
+	var bucketDefs map[string][]bucketDef
+	var bucketDefsByKey map[key][]bucketDef
+
+	var bucketServicePtr1 = &bucketDef{Value: "val1"}
+	var bucketServicePtr2 = &bucketDef{Value: "val2"}
+	var bucketService = bucketDef{Value: "val"}
+
+	Provide(&intMap, map[string][]int{})
+	Require(&intMap)
+	Provide(&intMapPtr, map[string][]*int{})
+	Require(&intMapPtr)
+	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
+	Require(&bucketDefsPtr)
+	Provide(&bucketDefs, map[string][]bucketDef{})
+	Require(&bucketDefs)
+	Provide(&bucketDefsByKey, map[key][]bucketDef{})
+	Require(&bucketDefsByKey)
+
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Empty(intMap)
+	assert.Empty(intMapPtr)
+	assert.Empty(bucketDefs)
+	assert.Empty(bucketDefsPtr)
+	assert.Empty(bucketDefsByKey)
+
+	val1 := 3
+	val2 := 4
+	ProvideKeyValue(&intMap, "str", 1)
+	ProvideKeyValue(&intMap, "str", 2)
+	ProvideKeyValue(&intMapPtr, "str", &val1)
+	ProvideKeyValue(&intMapPtr, "str", &val2)
+	ProvideKeyValue(&bucketDefs, "key", bucketService)
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr1)
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr2)
+	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
+
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Len(intMap, 1)
+	assert.Len(intMap["str"], 2)
+	assert.Len(intMapPtr, 1)
+	assert.Len(intMapPtr["str"], 2)
+	assert.Equal(1, intMap["str"][0])
+	assert.Equal(2, intMap["str"][1])
+	assert.Equal(3, *intMapPtr["str"][0])
+	assert.Equal(4, *intMapPtr["str"][1])
+	assert.Len(bucketDefs, 1)
+	assert.Len(bucketDefs["key"], 1)
+	assert.Equal(bucketService, bucketDefs["key"][0])
+	assert.Len(bucketDefsPtr, 1)
+	assert.Len(bucketDefsPtr["key"], 2)
+	assert.Equal(bucketServicePtr1, bucketDefsPtr["key"][0])
+	assert.Equal(bucketServicePtr2, bucketDefsPtr["key"][1])
+	assert.Len(bucketDefsByKey, 1)
+	assert.Len(bucketDefsByKey[key{42}], 1)
+	assert.Equal(bucketService, bucketDefsByKey[key{42}][0])
 }
 
 func TestMixedRequirementsTypes(t *testing.T) {
