@@ -117,33 +117,48 @@ func ResolveAll() Errors {
 		tragetMapValueKind := tragetMapValueType.Kind()
 		targetMapValue := reflect.ValueOf(targetMap).Elem()
 		for k, v := range kvToAppend {
-			valueValue := reflect.ValueOf(v[0].elem) // "str" -> [1 v0, 2 v1]
-			valueValueKind := valueValue.Kind()
 			keyValue := reflect.ValueOf(k)
-			if !isSlice(valueValueKind) && isSlice(tragetMapValueKind) {
+			var toAppendValue reflect.Value
+			if isSlice(tragetMapValueKind) {
 				existingSlice := targetMapValue.MapIndex(keyValue)
-				newSlice := reflect.New(reflect.SliceOf(reflect.TypeOf(v[0].elem))).Elem()
+				newSlice := reflect.New(reflect.SliceOf(tragetMapValueType.Elem())).Elem()
 				if existingSlice.IsValid() {
-					for i:=0; i< existingSlice.Len(); i++ {
+					for i := 0; i < existingSlice.Len(); i++ {
 						existingElement := existingSlice.Index(i)
 						newSlice.Set(reflect.Append(newSlice, existingElement))
 					}
-				} 
+				}
 				for _, elementToAppend := range v {
 					elementToAppendValue := reflect.ValueOf(elementToAppend.elem)
-					newSlice.Set(reflect.Append(newSlice, elementToAppendValue))
+					elementToAppendKind := elementToAppendValue.Kind()
+					if isSlice(elementToAppendKind) {
+						for i := 0; i < elementToAppendValue.Len(); i++ {
+							newSlice.Set(reflect.Append(newSlice, elementToAppendValue.Index(i)))
+						}
+					} else {
+						newSlice.Set(reflect.Append(newSlice, elementToAppendValue))
+					}
 				}
-				valueValue = newSlice
+				toAppendValue = newSlice
+			} else {
+				toAppendValue = reflect.ValueOf(v[0].elem)
 			}
-			targetMapValue.SetMapIndex(keyValue, valueValue)
+			targetMapValue.SetMapIndex(keyValue, toAppendValue)
 		}
 	}
 
 	for targetSlice, elementsToAppend := range sliceElements {
+		targateSliceValue := reflect.ValueOf(targetSlice).Elem()
 		for _, elementToAppend := range elementsToAppend {
 			elementValue := reflect.ValueOf(elementToAppend.elem)
-			reqValue := reflect.ValueOf(targetSlice).Elem()
-			reqValue.Set(reflect.Append(reqValue, elementValue))
+			elementKind := elementValue.Kind()
+			if isSlice(elementKind) {
+				for i := 0; i < elementValue.Len(); i++ {
+					targateSliceValue.Set(reflect.Append(targateSliceValue, elementValue.Index(i)))
+				}
+			} else {
+				targateSliceValue.Set(reflect.Append(targateSliceValue, elementValue))
+			}
 		}
 	}
 
@@ -191,9 +206,9 @@ func getErrors() Errors {
 
 	for targetMap, kvToAppend := range keyValues {
 		targetMapType := reflect.TypeOf(targetMap).Elem()
-		targetValue := reflect.ValueOf(targetMap).Elem()
+		targetMapValue := reflect.ValueOf(targetMap).Elem()
 		impl := provided[targetMap]
-		if targetValue.IsNil() {
+		if targetMapValue.IsNil() {
 			if impl == nil {
 				keys := reflect.ValueOf(kvToAppend).MapKeys()
 				errs = append(errs, &EImplementationNotProvided{kvToAppend[keys[0].Interface()][0]})
@@ -214,12 +229,7 @@ func getErrors() Errors {
 					provType := reflect.TypeOf(provElement.elem)
 					provKind := provType.Kind()
 					if isSlice(provKind) {
-						if len(v) > 1 {
-							errs = append(errs, &EMultipleValues{v})
-							break
-						}
 						provType = provType.Elem()
-						provKind = provType.Kind()
 					}
 					if !provType.AssignableTo(reqMapValueSliceElementType) {
 						errs = append(errs, &EIncompatibleTypesSlice{targetMapType, provElement})
@@ -255,6 +265,10 @@ func getErrors() Errors {
 		}
 		for _, v := range elementsToAppend {
 			vType := reflect.TypeOf(v.elem)
+			vKind := vType.Kind()
+			if isSlice(vKind) {
+				vType = vType.Elem()
+			}
 			if !vType.AssignableTo(targetSliceType.Elem()) {
 				errs = append(errs, &EIncompatibleTypesSlice{targetSliceType, v})
 			}

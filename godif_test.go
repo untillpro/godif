@@ -283,7 +283,7 @@ func TestProvideExtensionMapBasic(t *testing.T) {
 	assert.NotNil(initedMap)
 }
 
-func TestProvideExtensionMapRequireProvideForNil(t *testing.T) {
+func TestProvideExtensionMapErrorOnNoProvideForNil(t *testing.T) {
 	Reset()
 	var myMap map[string]int
 
@@ -297,7 +297,7 @@ func TestProvideExtensionMapRequireProvideForNil(t *testing.T) {
 	}
 }
 
-func TestProvideExtensionMapErrorOnProvidedForNonNil(t *testing.T) {
+func TestProvideExtensionMapErrorOnProvideForNonNil(t *testing.T) {
 	Reset()
 	myMap := make(map[string]int)
 
@@ -355,39 +355,8 @@ func TestProvideExtensionMapAppendSliceIncompatibleTypes(t *testing.T) {
 
 	var bucketServicePtr = &anotherType{Value: "val"}
 	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	Require(&bucketDefsPtr)
 	_, provFile, provLine, _ := runtime.Caller(0)
 	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
-
-	errs := ResolveAll()
-	assert.Nil(t, bucketDefsPtr)
-
-	if e, ok := errs[0].(*EIncompatibleTypesSlice); ok && len(errs) == 1 {
-		fmt.Println(e)
-		assert.Equal(t, reflect.TypeOf(bucketDefsPtr), e.reqType)
-		assert.Equal(t, provFile, e.prov.file)
-		assert.Equal(t, provLine+1, e.prov.line)
-	} else {
-		t.Fatal(errs)
-	}
-}
-
-func TestProvideExtensionMapSetSliceIncompatibleTypes(t *testing.T) {
-	Reset()
-	type bucketDef struct {
-		Key string
-	}
-	type anotherType struct {
-		Value string
-	}
-
-	var bucketDefsPtr map[string][]*bucketDef
-
-	var bucketServicePtr = &anotherType{Value: "val"}
-	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	Require(&bucketDefsPtr)
-	_, provFile, provLine, _ := runtime.Caller(0)
-	ProvideKeyValue(&bucketDefsPtr, "key", []*anotherType{bucketServicePtr})
 
 	errs := ResolveAll()
 	assert.Nil(t, bucketDefsPtr)
@@ -438,7 +407,7 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 	type bucketDef struct {
 		Value string
 	}
-	initedSlice := []int{}
+	initedSlice := []int{42}
 	var mySlice []string
 	var bucketDefs []bucketDef
 	var bucketDefsPtr []*bucketDef
@@ -449,9 +418,13 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 
 	var bucketServicePtr = &bucketDef{Value: "val"}
 	var bucketService = bucketDef{Value: "val"}
-	ProvideSliceElement(&initedSlice, 42)
+	ProvideSliceElement(&initedSlice, 43)
+	ProvideSliceElement(&initedSlice, []int{44})
 	ProvideSliceElement(&mySlice, "str1")
+	ProvideSliceElement(&mySlice, []string{"str2"})
 	ProvideSliceElement(&bucketDefs, bucketService)
+	ProvideSliceElement(&bucketDefs, []bucketDef{bucketService})
+	ProvideSliceElement(&bucketDefsPtr, []*bucketDef{bucketServicePtr})
 	ProvideSliceElement(&bucketDefsPtr, bucketServicePtr)
 
 	errs := ResolveAll()
@@ -459,14 +432,19 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 		t.Fatal(errs)
 	}
 
-	assert.Len(initedSlice, 1)
+	assert.Len(initedSlice, 3)
+	assert.Len(mySlice, 2)
+	assert.Len(bucketDefs, 2)
+	assert.Len(bucketDefsPtr, 2)
 	assert.Equal(42, initedSlice[0])
-	assert.Len(mySlice, 1)
+	assert.Equal(43, initedSlice[1])
+	assert.Equal(44, initedSlice[2])
 	assert.Equal("str1", mySlice[0])
-	assert.Len(bucketDefs, 1)
+	assert.Equal("str2", mySlice[1])
 	assert.Equal("val", bucketDefs[0].Value)
-	assert.Len(bucketDefsPtr, 1)
+	assert.Equal("val", bucketDefs[1].Value)
 	assert.Equal("val", bucketDefsPtr[0].Value)
+	assert.Equal("val", bucketDefsPtr[1].Value)
 
 	Reset()
 	assert.Nil(mySlice)
@@ -487,15 +465,6 @@ func TestProvideExtensionSliceRequireProvideForNil(t *testing.T) {
 	} else {
 		t.Fatal()
 	}
-}
-
-func TestSlicePointers(t *testing.T) {
-	slice1 := []string{}
-	slice2 := []string{}
-
-	slice1Value := reflect.ValueOf(&slice1).Elem()
-	slice2Value := reflect.ValueOf(&slice2).Elem()
-	assert.NotEqual(t, slice1Value, slice2Value)
 }
 
 func TestProvideExtensionSliceErrorOnProvideForNonNil(t *testing.T) {
@@ -530,126 +499,6 @@ func TestProvideExtenssionSliceIncompatibleTypes(t *testing.T) {
 	} else {
 		t.Fatal(errs)
 	}
-}
-
-func TestProvideExtensionMapSetSlice(t *testing.T) {
-	Reset()
-	assert := assert.New(t)
-
-	type bucketDef struct {
-		Value string
-	}
-
-	type key struct {
-		keyValue int
-	}
-
-	var intMap map[string][]int
-	var intMapPtr map[string][]*int
-	var bucketDefsPtr map[string][]*bucketDef
-	var bucketDefs map[string][]bucketDef
-	var bucketDefsByKey map[key][]bucketDef
-
-	var bucketServicePtr1 = &bucketDef{Value: "val1"}
-	var bucketServicePtr2 = &bucketDef{Value: "val2"}
-	var bucketService = bucketDef{Value: "val"}
-
-	Provide(&intMap, map[string][]int{})
-	Require(&intMap)
-	Provide(&intMapPtr, map[string][]*int{})
-	Require(&intMapPtr)
-	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	Require(&bucketDefsPtr)
-	Provide(&bucketDefs, map[string][]bucketDef{})
-	Require(&bucketDefs)
-	Provide(&bucketDefsByKey, map[key][]bucketDef{})
-	Require(&bucketDefsByKey)
-
-	val1 := 3
-	val2 := 4
-	ProvideKeyValue(&intMap, "str", []int{1, 2})
-	ProvideKeyValue(&intMapPtr, "str", []*int{&val1, &val2})
-	ProvideKeyValue(&bucketDefs, "key", []bucketDef{bucketService})
-	ProvideKeyValue(&bucketDefsPtr, "key", []*bucketDef{bucketServicePtr1, bucketServicePtr2})
-	ProvideKeyValue(&bucketDefsByKey, key{42}, []bucketDef{bucketService})
-
-	errs := ResolveAll()
-	if errs != nil {
-		t.Fatal(errs)
-	}
-	assert.Len(intMap, 1)
-	assert.Len(intMap["str"], 2)
-	assert.Len(intMapPtr, 1)
-	assert.Len(intMapPtr["str"], 2)
-	assert.Equal(1, intMap["str"][0])
-	assert.Equal(2, intMap["str"][1])
-	assert.Equal(3, *intMapPtr["str"][0])
-	assert.Equal(4, *intMapPtr["str"][1])
-	assert.Len(bucketDefs, 1)
-	assert.Len(bucketDefs["key"], 1)
-	assert.Equal(bucketService, bucketDefs["key"][0])
-	assert.Len(bucketDefsPtr, 1)
-	assert.Len(bucketDefsPtr["key"], 2)
-	assert.Equal(bucketServicePtr1, bucketDefsPtr["key"][0])
-	assert.Equal(bucketServicePtr2, bucketDefsPtr["key"][1])
-	assert.Len(bucketDefsByKey, 1)
-	assert.Len(bucketDefsByKey[key{42}], 1)
-	assert.Equal(bucketService, bucketDefsByKey[key{42}][0])
-}
-
-func TestProvideExtensionMapSetSliceMultipleValuesError(t *testing.T) {
-	Reset()
-
-	type bucketDef struct {
-		Value string
-	}
-
-	type key struct {
-		keyValue int
-	}
-
-	var intMap map[string][]int
-	var intMapPtr map[string][]*int
-	var bucketDefsPtr map[string][]*bucketDef
-	var bucketDefs map[string][]bucketDef
-	var bucketDefsByKey map[key][]bucketDef
-
-	var bucketServicePtr1 = &bucketDef{Value: "val1"}
-	var bucketService = bucketDef{Value: "val"}
-
-	Provide(&intMap, map[string][]int{})
-	Require(&intMap)
-	Provide(&intMapPtr, map[string][]*int{})
-	Require(&intMapPtr)
-	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	Require(&bucketDefsPtr)
-	Provide(&bucketDefs, map[string][]bucketDef{})
-	Require(&bucketDefs)
-	Provide(&bucketDefsByKey, map[key][]bucketDef{})
-	Require(&bucketDefsByKey)
-
-	val1 := 3
-	val2 := 4
-	ProvideKeyValue(&intMap, "str", []int{2})
-	ProvideKeyValue(&intMap, "str", 1)
-	ProvideKeyValue(&intMapPtr, "str", &val1)
-	ProvideKeyValue(&intMapPtr, "str", []*int{&val2})
-	ProvideKeyValue(&bucketDefs, "key", bucketService)
-	ProvideKeyValue(&bucketDefs, "key", []bucketDef{bucketService})
-	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr1)
-	ProvideKeyValue(&bucketDefsPtr, "key", []*bucketDef{bucketServicePtr1})
-	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
-	ProvideKeyValue(&bucketDefsByKey, key{42}, []bucketDef{bucketService})
-	errs := ResolveAll()
-	if errs == nil {
-		t.Fatal()
-	}
-	for _, err := range errs {
-		if _, ok := err.(*EMultipleValues); !ok {
-			t.Fatal(err)
-		}
-	}
-	assert.Len(t, errs, 5)
 }
 
 func TestProvideExtensionMapAppendSlice(t *testing.T) {
@@ -689,42 +538,49 @@ func TestProvideExtensionMapAppendSlice(t *testing.T) {
 
 	val1 := 3
 	val2 := 4
+	ProvideKeyValue(&inited, "tmp", []int{44})
 	ProvideKeyValue(&inited, "tmp", 43)
 	ProvideKeyValue(&intMap, "str", 1)
-	ProvideKeyValue(&intMap, "str", 2)
+	ProvideKeyValue(&intMap, "str", []int{2})
 	ProvideKeyValue(&intMapPtr, "str", &val1)
-	ProvideKeyValue(&intMapPtr, "str", &val2)
+	ProvideKeyValue(&intMapPtr, "str", []*int{&val2})
 	ProvideKeyValue(&bucketDefs, "key", bucketService)
+	ProvideKeyValue(&bucketDefs, "key", []bucketDef{bucketService})
 	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr1)
-	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr2)
+	ProvideKeyValue(&bucketDefsPtr, "key", []*bucketDef{bucketServicePtr2})
 	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
+	ProvideKeyValue(&bucketDefsByKey, key{42}, []bucketDef{bucketService})
 
 	errs := ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
 	}
 	assert.Len(inited, 1)
-	assert.Len(inited["tmp"], 2)
+	assert.Len(inited["tmp"], 3)
 	assert.Len(intMap, 1)
 	assert.Len(intMap["str"], 2)
 	assert.Len(intMapPtr, 1)
 	assert.Len(intMapPtr["str"], 2)
-	assert.Equal(42, inited["tmp"][0])
-	assert.Equal(43, inited["tmp"][1])
-	assert.Equal(1, intMap["str"][0])
-	assert.Equal(2, intMap["str"][1])
-	assert.Equal(3, *intMapPtr["str"][0])
-	assert.Equal(4, *intMapPtr["str"][1])
 	assert.Len(bucketDefs, 1)
-	assert.Len(bucketDefs["key"], 1)
-	assert.Equal(bucketService, bucketDefs["key"][0])
+	assert.Len(bucketDefs["key"], 2)
 	assert.Len(bucketDefsPtr, 1)
 	assert.Len(bucketDefsPtr["key"], 2)
+	assert.Len(bucketDefsByKey, 1)
+	assert.Len(bucketDefsByKey[key{42}], 2)
+
+	assert.Equal(42, inited["tmp"][0])
+	assert.Equal(44, inited["tmp"][1])
+	assert.Equal(43, inited["tmp"][2])
+	assert.Equal(1, intMap["str"][0])
+	assert.Equal(2, intMap["str"][1])
+	assert.Equal(val1, *intMapPtr["str"][0])
+	assert.Equal(val2, *intMapPtr["str"][1])
+	assert.Equal(bucketService, bucketDefs["key"][0])
+	assert.Equal(bucketService, bucketDefs["key"][1])
 	assert.Equal(bucketServicePtr1, bucketDefsPtr["key"][0])
 	assert.Equal(bucketServicePtr2, bucketDefsPtr["key"][1])
-	assert.Len(bucketDefsByKey, 1)
-	assert.Len(bucketDefsByKey[key{42}], 1)
 	assert.Equal(bucketService, bucketDefsByKey[key{42}][0])
+	assert.Equal(bucketService, bucketDefsByKey[key{42}][1])
 }
 
 func TestMixedRequirementsTypes(t *testing.T) {
