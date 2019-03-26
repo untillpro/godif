@@ -9,43 +9,21 @@ package godif
 
 import (
 	"fmt"
+	"reflect"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestBasicUsage(t *testing.T) {
+func TestFuncBasic(t *testing.T) {
 	Reset()
 	var injectedFunc func(x int, y int) int
 
-	errs := ResolveAll()
-	if errs != nil {
-		t.Fatal(errs)
-	}
-	assert.Nil(t, injectedFunc)
-
 	Require(&injectedFunc)
-	errs = ResolveAll()
-	if errs == nil {
-		t.Fatal()
-	}
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
-
-	fmt.Println(errs)
-
-	switch errs[0].(type) {
-	case *EImplementationNotProvided:
-		fmt.Println(errs[0])
-	default:
-		t.Fatal()
-	}
-	assert.Nil(t, injectedFunc)
-
 	Provide(&injectedFunc, f)
-	errs = ResolveAll()
+
+	errs := ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
 	}
@@ -55,9 +33,25 @@ func TestBasicUsage(t *testing.T) {
 	assert.Nil(t, injectedFunc)
 }
 
-func TestExplicitTypeInject(t *testing.T) {
-	type Func1Type = func(x int, y int) int
+func TestFuncErrorOnNoImplementation(t *testing.T) {
 	Reset()
+	var injectedFunc func(x int, y int) int
+
+	Require(&injectedFunc)
+	errs := ResolveAll()
+
+	if _, ok := errs[0].(*EImplementationNotProvided); ok && len(errs) == 1 {
+		fmt.Println(errs)
+	} else {
+		t.Fatal(errs)
+	}
+
+	assert.Nil(t, injectedFunc)
+}
+
+func TestExplicitTypeInject(t *testing.T) {
+	Reset()
+	type Func1Type = func(x int, y int) int
 	var inject Func1Type
 
 	Require(&inject)
@@ -81,13 +75,9 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 	Provide(&injectedFunc1, f3)
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
-	assert.Nil(t, injectedFunc1)
 
-	if e, ok := errs[0].(*EMultipleImplementations); ok {
-		fmt.Println(e)
+	if e, ok := errs[0].(*EMultipleImplementations); ok && len(errs) == 1 {
+		fmt.Println(errs)
 		assert.Equal(t, 2, len(e.provs))
 		assert.Equal(t, reqLine+1, e.req.line)
 		assert.Equal(t, reqFile, e.req.file)
@@ -98,6 +88,7 @@ func TestErrorOnMultipleImplementations(t *testing.T) {
 	} else {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, injectedFunc1)
 }
 
 func TestMultipleErrorsOnResolve(t *testing.T) {
@@ -119,16 +110,12 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 
 	fmt.Println(errs)
 
-	switch errs[0].(type) {
-	case *EMultipleImplementations:
-	default:
-		t.Fatal()
+	if _, ok := errs[0].(*EMultipleImplementations); !ok {
+		t.Fatal(errs)
 	}
 
-	switch errs[1].(type) {
-	case *EImplementationNotProvided:
-	default:
-		t.Fatal()
+	if _, ok := errs[1].(*EImplementationNotProvided); !ok {
+		t.Fatal(errs)
 	}
 }
 
@@ -140,18 +127,15 @@ func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
 	Require(injectedFunc)
 	Provide(injectedFunc, f)
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
-	assert.Nil(t, injectedFunc)
 
-	if e, ok := errs[0].(*ENonAssignableRequirement); ok {
-		fmt.Println(e)
+	if e, ok := errs[0].(*ENonAssignableRequirement); ok && len(errs) == 1 {
+		fmt.Println(errs)
 		assert.Equal(t, file, e.req.file)
 		assert.Equal(t, line+1, e.req.line)
 	} else {
 		t.Fatal(errs)
 	}
+	assert.Nil(t, injectedFunc)
 }
 
 func TestMatchReqAndImplByPointer(t *testing.T) {
@@ -182,13 +166,9 @@ func TestErrorOnIncompatibleTypes(t *testing.T) {
 	Provide(&injected, f2)
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
-	assert.Nil(t, injected)
 
-	if e, ok := errs[0].(*EIncompatibleTypes); ok {
-		fmt.Println(e)
+	if e, ok := errs[0].(*EIncompatibleTypesFunc); ok && len(errs) == 1 {
+		fmt.Println(errs)
 		assert.Equal(t, reqFile, e.req.file)
 		assert.Equal(t, reqLine+1, e.req.line)
 		assert.Equal(t, implFile, e.prov.file)
@@ -196,6 +176,7 @@ func TestErrorOnIncompatibleTypes(t *testing.T) {
 	} else {
 		t.Fatal()
 	}
+	assert.Nil(t, injected)
 }
 
 func TestErrorOnProvidedButNotUsed(t *testing.T) {
@@ -206,14 +187,11 @@ func TestErrorOnProvidedButNotUsed(t *testing.T) {
 	Provide(&injected, f)
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
 	assert.Nil(t, injected)
 
-	fmt.Println(errs[0])
+	fmt.Println(errs)
 
-	if e, ok := errs[0].(*EProvidedNotUsed); ok {
+	if e, ok := errs[0].(*EProvidedNotUsed); ok && len(errs) == 1 {
 		assert.Equal(t, implFile, e.prov.file)
 		assert.Equal(t, implLine+1, e.prov.line)
 	} else {
@@ -222,14 +200,12 @@ func TestErrorOnProvidedButNotUsed(t *testing.T) {
 
 	Require(&injected)
 	errs = ResolveAll()
-
 	assert.Nil(t, errs)
 }
 
 func TestDataInject(t *testing.T) {
 	Reset()
 	var injected map[string]int
-	Require(&injected)
 	Provide(&injected, make(map[string]int))
 
 	errs := ResolveAll()
@@ -248,13 +224,9 @@ func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
 	Provide(&injected, make([]int, 0))
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
-	assert.Nil(t, injected)
 
-	if e, ok := errs[0].(*EIncompatibleTypes); ok {
-		fmt.Println(e)
+	if e, ok := errs[0].(*EIncompatibleTypesFunc); ok && len(errs) == 1 {
+		fmt.Println(errs)
 		assert.Equal(t, reqFile, e.req.file)
 		assert.Equal(t, reqLine+1, e.req.line)
 		assert.Equal(t, provFile, e.prov.file)
@@ -262,10 +234,12 @@ func TestErrorOnIncompatibleTypesDataInject(t *testing.T) {
 	} else {
 		t.Fatal()
 	}
+	assert.Nil(t, injected)
 }
 
-func TestProvideExtensionMap(t *testing.T) {
+func TestProvideExtensionMapBasic(t *testing.T) {
 	Reset()
+	assert := assert.New(t)
 	type bucketDef struct {
 		Value string
 	}
@@ -274,44 +248,73 @@ func TestProvideExtensionMap(t *testing.T) {
 		keyValue int
 	}
 
+	initedMap := make(map[string]int)
 	var bucketDefsPtr map[string]*bucketDef
 	var bucketDefs map[string]bucketDef
 	var bucketDefsByKey map[key]bucketDef
 
+	Provide(&bucketDefsPtr, map[string]*bucketDef{})
+	Provide(&bucketDefs, map[string]bucketDef{})
+	Provide(&bucketDefsByKey, map[key]bucketDef{})
+
 	var bucketServicePtr = &bucketDef{Value: "val"}
 	var bucketService = bucketDef{Value: "val"}
-	Provide(&bucketDefsPtr, map[string]*bucketDef{})
-	Require(&bucketDefsPtr)
-	Provide(&bucketDefs, map[string]bucketDef{})
-	Require(&bucketDefs)
-	Provide(&bucketDefsByKey, map[key]bucketDef{})
-	Require(&bucketDefsByKey)
-
+	ProvideKeyValue(&initedMap, "str", 1)
+	ProvideKeyValue(&bucketDefs, "key", bucketService)
+	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
+	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
 	errs := ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
 	}
-	assert.Empty(t, bucketDefs)
-	assert.Empty(t, bucketDefsPtr)
-	assert.Empty(t, bucketDefsByKey)
+	assert.Equal(1, len(initedMap))
+	assert.Equal(1, initedMap["str"])
+	assert.Equal(1, len(bucketDefs))
+	assert.Equal(bucketService, bucketDefs["key"])
+	assert.Equal(1, len(bucketDefsPtr))
+	assert.Equal(bucketServicePtr, bucketDefsPtr["key"])
+	assert.Equal(1, len(bucketDefsByKey))
+	assert.Equal(bucketService, bucketDefsByKey[key{42}])
 
-	ProvideKeyValue(&bucketDefs, "key", bucketService)
-	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
-	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
-	errs = ResolveAll()
-	if errs != nil {
-		t.Fatal(errs)
+	Reset()
+	assert.Nil(bucketDefsPtr)
+	assert.Nil(bucketDefs)
+	assert.Nil(bucketDefsByKey)
+	assert.NotNil(initedMap)
+}
+
+func TestProvideExtensionMapRequireProvideForNil(t *testing.T) {
+	Reset()
+	var myMap map[string]int
+
+	ProvideKeyValue(&myMap, "str", 1)
+
+	errs := ResolveAll()
+	if _, ok := errs[0].(*EImplementationNotProvided); ok && len(errs) == 1 {
+		fmt.Println(errs)
+	} else {
+		t.Fatal()
 	}
-	assert.Equal(t, 1, len(bucketDefs))
-	assert.Equal(t, bucketService, bucketDefs["key"])
-	assert.Equal(t, 1, len(bucketDefsPtr))
-	assert.Equal(t, bucketServicePtr, bucketDefsPtr["key"])
-	assert.Equal(t, 1, len(bucketDefsByKey))
-	assert.Equal(t, bucketService, bucketDefsByKey[key{42}])
+}
+
+func TestProvideExtensionMapErrorOnProvidedForNonNil(t *testing.T) {
+	Reset()
+	myMap := make(map[string]int)
+
+	Provide(&myMap, map[string]int{})
+	ProvideKeyValue(&myMap, "str", 1)
+
+	errs := ResolveAll()
+	if _, ok := errs[0].(*EImplementationProvidedForNonNil); ok && len(errs) == 1 {
+		fmt.Println(errs)
+	} else {
+		t.Fatal()
+	}
 }
 
 func TestProvideExtensionMapIncompatibleTypes(t *testing.T) {
 	Reset()
+	assert := assert.New(t)
 	type bucketDef struct {
 		Key string
 	}
@@ -323,23 +326,17 @@ func TestProvideExtensionMapIncompatibleTypes(t *testing.T) {
 
 	var bucketServicePtr = &anotherType{Value: "val"}
 	Provide(&bucketDefsPtr, map[string]*bucketDef{})
-	_, reqFile, reqLine, _ := runtime.Caller(0)
-	Require(&bucketDefsPtr)
 	_, provFile, provLine, _ := runtime.Caller(0)
 	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
-	assert.Nil(t, bucketDefsPtr)
+	assert.Nil(bucketDefsPtr)
 
-	if e, ok := errs[0].(*EIncompatibleTypes); ok {
-		fmt.Println(e)
-		assert.Equal(t, reqFile, e.req.file)
-		assert.Equal(t, reqLine+1, e.req.line)
-		assert.Equal(t, provFile, e.prov.file)
-		assert.Equal(t, provLine+1, e.prov.line)
+	if e, ok := errs[0].(*EIncompatibleTypesSlice); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(reflect.TypeOf(bucketDefsPtr).Elem(), e.reqType)
+		assert.Equal(provFile, e.prov.file)
+		assert.Equal(provLine+1, e.prov.line)
 	} else {
 		t.Fatal(errs)
 	}
@@ -358,21 +355,16 @@ func TestProvideExtensionMapAppendSliceIncompatibleTypes(t *testing.T) {
 
 	var bucketServicePtr = &anotherType{Value: "val"}
 	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&bucketDefsPtr)
 	_, provFile, provLine, _ := runtime.Caller(0)
 	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
 	assert.Nil(t, bucketDefsPtr)
 
-	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+	if e, ok := errs[0].(*EIncompatibleTypesSlice); ok && len(errs) == 1 {
 		fmt.Println(e)
-		assert.Equal(t, reqFile, e.req.file)
-		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, reflect.TypeOf(bucketDefsPtr), e.reqType)
 		assert.Equal(t, provFile, e.prov.file)
 		assert.Equal(t, provLine+1, e.prov.line)
 	} else {
@@ -393,21 +385,16 @@ func TestProvideExtensionMapSetSliceIncompatibleTypes(t *testing.T) {
 
 	var bucketServicePtr = &anotherType{Value: "val"}
 	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&bucketDefsPtr)
 	_, provFile, provLine, _ := runtime.Caller(0)
 	ProvideKeyValue(&bucketDefsPtr, "key", []*anotherType{bucketServicePtr})
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
 	assert.Nil(t, bucketDefsPtr)
 
-	if e, ok := errs[0].(*EIncompatibleTypes); ok {
+	if e, ok := errs[0].(*EIncompatibleTypesSlice); ok && len(errs) == 1 {
 		fmt.Println(e)
-		assert.Equal(t, reqFile, e.req.file)
-		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, reflect.TypeOf(bucketDefsPtr), e.reqType)
 		assert.Equal(t, provFile, e.prov.file)
 		assert.Equal(t, provLine+1, e.prov.line)
 	} else {
@@ -424,7 +411,6 @@ func TestProvideExtensionMapErrorOnMultipleValuesPerKey(t *testing.T) {
 	var bucketDefs map[string]*bucketDef
 
 	Provide(&bucketDefs, map[string]*bucketDef{})
-	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&bucketDefs)
 	_, implFileF, implLineF, _ := runtime.Caller(0)
 	ProvideKeyValue(&bucketDefs, "key", &bucketDef{"val1"})
@@ -432,16 +418,11 @@ func TestProvideExtensionMapErrorOnMultipleValuesPerKey(t *testing.T) {
 	ProvideKeyValue(&bucketDefs, "key", &bucketDef{"val2"})
 
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal(errs)
-	}
 	assert.Nil(t, bucketDefs)
 
-	if e, ok := errs[0].(*EMultipleValues); ok {
+	if e, ok := errs[0].(*EMultipleValues); ok && len(errs) == 1 {
 		fmt.Println(e)
 		assert.Equal(t, 2, len(e.provs))
-		assert.Equal(t, reqLine+1, e.req.line)
-		assert.Equal(t, reqFile, e.req.file)
 		assert.Equal(t, implLineF+1, e.provs[0].line)
 		assert.Equal(t, implFileF, e.provs[0].file)
 		assert.Equal(t, implLineF2+1, e.provs[1].line)
@@ -451,55 +432,99 @@ func TestProvideExtensionMapErrorOnMultipleValuesPerKey(t *testing.T) {
 	}
 }
 
-func TestProvideExtensionSlice(t *testing.T) {
+func TestProvideExtensionSliceBasic(t *testing.T) {
 	Reset()
 	assert := assert.New(t)
+	type bucketDef struct {
+		Value string
+	}
+	initedSlice := []int{}
 	var mySlice []string
-
-	Require(&mySlice)
-	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal()
-	}
-	switch errs[0].(type) {
-	case *EImplementationNotProvided:
-	default:
-		t.Fatal()
-	}
+	var bucketDefs []bucketDef
+	var bucketDefsPtr []*bucketDef
 
 	Provide(&mySlice, make([]string, 0))
-	errs = ResolveAll()
-	if errs != nil {
-		t.Fatal(errs)
-	}
-	assert.Len(mySlice, 0)
+	Provide(&bucketDefs, make([]bucketDef, 0))
+	Provide(&bucketDefsPtr, make([]*bucketDef, 0))
 
+	var bucketServicePtr = &bucketDef{Value: "val"}
+	var bucketService = bucketDef{Value: "val"}
+	ProvideSliceElement(&initedSlice, 42)
 	ProvideSliceElement(&mySlice, "str1")
-	errs = ResolveAll()
+	ProvideSliceElement(&bucketDefs, bucketService)
+	ProvideSliceElement(&bucketDefsPtr, bucketServicePtr)
+
+	errs := ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
 	}
 
+	assert.Len(initedSlice, 1)
+	assert.Equal(42, initedSlice[0])
 	assert.Len(mySlice, 1)
 	assert.Equal("str1", mySlice[0])
+	assert.Len(bucketDefs, 1)
+	assert.Equal("val", bucketDefs[0].Value)
+	assert.Len(bucketDefsPtr, 1)
+	assert.Equal("val", bucketDefsPtr[0].Value)
+
+	Reset()
+	assert.Nil(mySlice)
+	assert.Nil(bucketDefs)
+	assert.Nil(bucketDefsPtr)
+	assert.NotNil(initedSlice)
+}
+
+func TestProvideExtensionSliceRequireProvideForNil(t *testing.T) {
+	Reset()
+	var mySlice []string
+
+	ProvideSliceElement(&mySlice, "str")
+
+	errs := ResolveAll()
+	if _, ok := errs[0].(*EImplementationNotProvided); ok && len(errs) == 1 {
+		fmt.Println(errs)
+	} else {
+		t.Fatal()
+	}
+}
+
+func TestSlicePointers(t *testing.T) {
+	slice1 := []string{}
+	slice2 := []string{}
+
+	slice1Value := reflect.ValueOf(&slice1).Elem()
+	slice2Value := reflect.ValueOf(&slice2).Elem()
+	assert.NotEqual(t, slice1Value, slice2Value)
+}
+
+func TestProvideExtensionSliceErrorOnProvideForNonNil(t *testing.T) {
+	Reset()
+	mySlice := []string{}
+	mySliceImpl := []string{}
+
+	Provide(&mySlice, mySliceImpl)
+	ProvideSliceElement(&mySlice, "str")
+
+	errs := ResolveAll()
+	if _, ok := errs[0].(*EImplementationProvidedForNonNil); ok && len(errs) == 1 {
+		fmt.Println(errs)
+	} else {
+		t.Fatal()
+	}
 }
 
 func TestProvideExtenssionSliceIncompatibleTypes(t *testing.T) {
 	Reset()
 	var mySlice []string
-	_, reqFile, reqLine, _ := runtime.Caller(0)
 	Require(&mySlice)
 	Provide(&mySlice, make([]string, 0))
 	_, provFile, provLine, _ := runtime.Caller(0)
 	ProvideSliceElement(&mySlice, 1)
 	errs := ResolveAll()
-	if len(errs) != 1 {
-		t.Fatal()
-	}
-	if e, ok := errs[0].(*EIncompatibleTypes); ok {
-		fmt.Println(e)
-		assert.Equal(t, reqLine+1, e.req.line)
-		assert.Equal(t, reqFile, e.req.file)
+	if e, ok := errs[0].(*EIncompatibleTypesSlice); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, reflect.TypeOf(mySlice), e.reqType)
 		assert.Equal(t, provLine+1, e.prov.line)
 		assert.Equal(t, provFile, e.prov.file)
 	} else {
@@ -639,6 +664,7 @@ func TestProvideExtensionMapAppendSlice(t *testing.T) {
 		keyValue int
 	}
 
+	inited := map[string][]int{}
 	var intMap map[string][]int
 	var intMapPtr map[string][]*int
 	var bucketDefsPtr map[string][]*bucketDef
@@ -659,19 +685,11 @@ func TestProvideExtensionMapAppendSlice(t *testing.T) {
 	Require(&bucketDefs)
 	Provide(&bucketDefsByKey, map[key][]bucketDef{})
 	Require(&bucketDefsByKey)
-
-	errs := ResolveAll()
-	if errs != nil {
-		t.Fatal(errs)
-	}
-	assert.Empty(intMap)
-	assert.Empty(intMapPtr)
-	assert.Empty(bucketDefs)
-	assert.Empty(bucketDefsPtr)
-	assert.Empty(bucketDefsByKey)
+	inited["tmp"] = []int{42}
 
 	val1 := 3
 	val2 := 4
+	ProvideKeyValue(&inited, "tmp", 43)
 	ProvideKeyValue(&intMap, "str", 1)
 	ProvideKeyValue(&intMap, "str", 2)
 	ProvideKeyValue(&intMapPtr, "str", &val1)
@@ -681,14 +699,18 @@ func TestProvideExtensionMapAppendSlice(t *testing.T) {
 	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr2)
 	ProvideKeyValue(&bucketDefsByKey, key{42}, bucketService)
 
-	errs = ResolveAll()
+	errs := ResolveAll()
 	if errs != nil {
 		t.Fatal(errs)
 	}
+	assert.Len(inited, 1)
+	assert.Len(inited["tmp"], 2)
 	assert.Len(intMap, 1)
 	assert.Len(intMap["str"], 2)
 	assert.Len(intMapPtr, 1)
 	assert.Len(intMapPtr["str"], 2)
+	assert.Equal(42, inited["tmp"][0])
+	assert.Equal(43, inited["tmp"][1])
 	assert.Equal(1, intMap["str"][0])
 	assert.Equal(2, intMap["str"][1])
 	assert.Equal(3, *intMapPtr["str"][0])
@@ -732,6 +754,30 @@ func TestMixedRequirementsTypes(t *testing.T) {
 	assert.Equal(1, bucketDefs["key"])
 	assert.Len(mySlice, 1)
 	assert.Equal("str1", mySlice[0])
+}
+
+func TestErrorOnResoveTwice(t *testing.T) {
+	Reset()
+	assert := assert.New(t)
+	var injectedFunc func(x int, y int) int
+	Require(&injectedFunc)
+	Provide(&injectedFunc, f)
+
+	_, resFile, resLine, _ := runtime.Caller(0)
+	errs := ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+
+	errs = ResolveAll()
+	if e, ok := errs[0].(*EAlreadyResolved); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(resFile, e.resolvePlace.file)
+		assert.Equal(resLine+1, e.resolvePlace.line)
+	} else {
+		t.Fatal()
+	}
+
 }
 
 func f(x int, y int) int {
