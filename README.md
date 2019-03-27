@@ -11,7 +11,7 @@ Go dependency injection for functions (and not only...)
   - Manually: `MyMap = map[string]int{}`
     - `godif.Provide(&MyMap, map[string]int{})` -> Implementation provided for non-nil error
   - Provide implementation: `godif.Provide(&MyMap, map[string]int{})`
-  - No implementation -> Implementation not provided error
+  - No implementation -> error
 - Provide data: `godif.ProvideKeyValue(&MyMap, "key1", 1)`
 - Multiple values per key error:
   - `godif.ProvideKeyValue(&MyMap, "key1", 1)`
@@ -26,7 +26,7 @@ Go dependency injection for functions (and not only...)
   - Manually: `MyMap = map[string][]int{}`
     - `godif.Provide(&MyMap, map[string][]int{})` -> Implementation provided for non-nil error
   - Provide implementation: `godif.Provide(&MyMap, map[string][]int{})`
-  - No implementation -> Implementation not provided error
+  - No implementation -> error
 - Add initial data if needed: `MyMap["key1"] = append(MyMap["key1"], 42)`
   - Further `godif.ProvideKeyValue()` calls will append data to the existing slice
 - Provide data: 
