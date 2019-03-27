@@ -26,7 +26,7 @@ var required []*srcElem
 var provided map[interface{}][]*srcElem
 var keyValues map[interface{}]map[interface{}][]*srcElem
 var sliceElements map[interface{}][]*srcElem
-var resolveSrc *src = nil
+var resolveSrc *src
 
 func init() {
 	createVars()
@@ -53,7 +53,7 @@ func Reset() {
 			}
 		}
 	}
-	for p, _ := range provided {
+	for p := range provided {
 		v := reflect.ValueOf(p)
 		if v.Kind() == reflect.Ptr {
 			v = v.Elem()
