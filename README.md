@@ -4,9 +4,68 @@ Go dependency injection for functions (and not only...)
 
 # Usage
 
-- Package `ikvdb` declares functional interface (`Put`, `Get`) to buckets and bucket definitions holder (`BucketDefs`)
-- Package `kvdb` provides `Get`/`Put` functions and bucket definitions holder
-- Package `service` uses `Put` function and provides `startBucket ` bucket definition
+## Provide key-value
+
+- Declare: `var MyMap map[string]int`
+- Implement
+  - Manually: `MyMap = map[string]int{}`
+    - `godif.Provide(&MyMap, map[string]int{})` -> Implementation provided for non-nil error
+  - Provide implementation: `godif.Provide(&MyMap, map[string]int{})`
+  - No implementation -> error
+- Provide data: `godif.ProvideKeyValue(&MyMap, "key1", 1)`
+- Multiple values per key error:
+  - `godif.ProvideKeyValue(&MyMap, "key1", 1)`
+  - `godif.ProvideKeyValue(&MyMap, "key1", 2)`
+- Incompatible types error:
+  - `godif.ProvideKeyValue(&MyMap, "key1", "str")`
+
+## Provide key-slice
+
+- Declare: `var MyMap map[string][]int`
+- Implement
+  - Manually: `MyMap = map[string][]int{}`
+    - `godif.Provide(&MyMap, map[string][]int{})` -> Implementation provided for non-nil error
+  - Provide implementation: `godif.Provide(&MyMap, map[string][]int{})`
+  - No implementation -> error
+- Add initial data if needed: `MyMap["key1"] = append(MyMap["key1"], 42)`
+  - Further `godif.ProvideKeyValue()` calls will append data to the existing slice
+- Provide data: 
+  - `godif.ProvideKeyValue(&MyMap, "key1", 1)`
+  - `godif.ProvideKeyValue(&MyMap, "key1", 2)`
+  - `godif.ProvideKeyValue(&MyMap, "key1", []int{3, 4})`
+- Incompatible types error:
+  - `godif.ProvideKeyValue(&MyMap, "key1", "str")`
+
+## Provide slice element
+
+- Declare: `var MySlice []string`
+- Implement: `godif.Provide(&MySlice, []string{})`
+- Implement
+  - Manually: `MySlice = []string{}`
+    - `godif.Provide(&MySlice, []string{})` -> Implementation provided for non-nil error
+  - Provide implementation: `godif.Provide(&MySlice, []string{})`
+  - No implementation -> Implementation not provided error
+- Add initial data if needed: `MySlice = append(MySlice, 42)`
+  - Further `godif.ProvideSliceElement()` calls will append data to the existing slice
+- Provide data: 
+  - `godif.ProvideSliceElement(&MySlice, "str1")`
+  - `godif.ProvideSliceElement(&MySlice, []string{"str3", "str4"})`
+
+## Reset all injections
+- `godif.Reset()`
+- Provided vars will be nilled
+- Manually inited vars will be kept
+- Data injected into manually inited vars will be kept
+
+# Usage Example
+
+Imagine we have a functional interface to work with key-value database. Database has two methods - `Put` and `Get`. These methods works with `BucketDef`.
+
+The following example shows how to:
+
+1. Declare functional interface
+2. Implement (provide) functions
+3. Use functional interface
 
 ## 1. Declare
 
@@ -30,6 +89,8 @@ type BucketDef struct {
 var BucketDefs map[string]*BucketDef
 
 ```
+
+Package declares variables of certain types, these variablesmust be furher provided.
 
 ## 2. Provide
 
@@ -76,7 +137,7 @@ var bucketService = &ikvdb.BucketDef{Key: "service"}
 // Declare requires Put function and provides `bucketService` definition
 func Declare() {
 	godif.Require(&ikvdb.Put)
-	godif.ProvideMapValue(&ikvdb.BucketDefs, bucketService.Key, bucketService)
+	godif.ProvideExtension(&ikvdb.BucketDefs, bucketService.Key, bucketService)
 }
 
 type ctxKey string
@@ -112,6 +173,3 @@ func main() {
 	service.Start(ctx)
 }
 ```
-
-# Declare/Provide Data
-
