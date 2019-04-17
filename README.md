@@ -7,25 +7,28 @@ Go dependency injection for functions (and not only...)
 ## Provide key-value
 
 - Declare: `var MyMap map[string]int`
+- Require skipped, no error
 - Implement
   - Manually: `MyMap = map[string]int{}`
-    - `godif.Provide(&MyMap, map[string]int{})` -> Implementation provided for non-nil error
+    - Use Provide() -> error
   - Provide implementation: `godif.Provide(&MyMap, map[string]int{})`
+    - Multiple implementations -> error
+    - Non-map or map of incompatible key or value type -> error
   - No implementation -> error
 - Provide data: `godif.ProvideKeyValue(&MyMap, "key1", 1)`
-- Multiple values per key error:
-  - `godif.ProvideKeyValue(&MyMap, "key1", 1)`
-  - `godif.ProvideKeyValue(&MyMap, "key1", 2)`
-- Incompatible types error:
-  - `godif.ProvideKeyValue(&MyMap, "key1", "str")`
+  - Multiple values per key -> error
+  - Key or value of different types provided -> error
 
 ## Provide key-slice
 
 - Declare: `var MyMap map[string][]int`
+- Require skipped, no error
 - Implement
   - Manually: `MyMap = map[string][]int{}`
-    - `godif.Provide(&MyMap, map[string][]int{})` -> Implementation provided for non-nil error
+    - Use `Provide()` -> error
   - Provide implementation: `godif.Provide(&MyMap, map[string][]int{})`
+    - Multiple implementations -> error
+    - slice of incompatible element type -> error
   - No implementation -> error
 - Add initial data if needed: `MyMap["key1"] = append(MyMap["key1"], 42)`
   - Further `godif.ProvideKeyValue()` calls will append data to the existing slice
@@ -33,18 +36,17 @@ Go dependency injection for functions (and not only...)
   - `godif.ProvideKeyValue(&MyMap, "key1", 1)`
   - `godif.ProvideKeyValue(&MyMap, "key1", 2)`
   - `godif.ProvideKeyValue(&MyMap, "key1", []int{3, 4})`
-- Incompatible types error:
-  - `godif.ProvideKeyValue(&MyMap, "key1", "str")`
 
 ## Provide slice element
 
 - Declare: `var MySlice []string`
-- Implement: `godif.Provide(&MySlice, []string{})`
 - Implement
   - Manually: `MySlice = []string{}`
-    - `godif.Provide(&MySlice, []string{})` -> Implementation provided for non-nil error
+    - Use `Provide()` -> error
   - Provide implementation: `godif.Provide(&MySlice, []string{})`
-  - No implementation -> Implementation not provided error
+    - Multiple implementations -> error
+    - Incompatible types -> error
+  - No implementation -> error
 - Add initial data if needed: `MySlice = append(MySlice, 42)`
   - Further `godif.ProvideSliceElement()` calls will append data to the existing slice
 - Provide data: 

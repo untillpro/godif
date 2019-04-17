@@ -186,7 +186,7 @@ func getErrors() Errors {
 		}
 
 		if len(impls) > 1 {
-			errs = append(errs, &EMultipleImplementations{req, impls})
+			errs = append(errs, &EMultipleFuncImplementations{req, impls})
 		}
 
 		v := reflect.ValueOf(req.elem).Elem()
@@ -207,6 +207,7 @@ func getErrors() Errors {
 	for targetMap, kvToAppend := range keyValues {
 		targetMapType := reflect.TypeOf(targetMap).Elem()
 		targetMapValue := reflect.ValueOf(targetMap).Elem()
+		targetMapKeyType := reflect.TypeOf(targetMap).Elem().Key()
 		impl := provided[targetMap]
 		if targetMapValue.IsNil() {
 			if impl == nil {
@@ -220,11 +221,11 @@ func getErrors() Errors {
 				continue
 			}
 		}
-		tragetMapValueType := targetMapType.Elem()
-		tragetMapValueKind := tragetMapValueType.Kind()
-		for _, v := range kvToAppend {
-			if isSlice(tragetMapValueKind) {
-				reqMapValueSliceElementType := tragetMapValueType.Elem()
+		targetMapValueType := targetMapType.Elem()
+		targetMapValueKind := targetMapValueType.Kind()
+		for k, v := range kvToAppend {
+			if isSlice(targetMapValueKind) {
+				reqMapValueSliceElementType := targetMapValueType.Elem()
 				for _, provElement := range v {
 					provType := reflect.TypeOf(provElement.elem)
 					provKind := provType.Kind()
@@ -232,7 +233,7 @@ func getErrors() Errors {
 						provType = provType.Elem()
 					}
 					if !provType.AssignableTo(reqMapValueSliceElementType) {
-						errs = append(errs, &EIncompatibleTypesSlice{targetMapType, provElement})
+						errs = append(errs, &EIncompatibleTypesStorage{targetMapType, provElement})
 					}
 				}
 			} else {
@@ -240,8 +241,12 @@ func getErrors() Errors {
 					errs = append(errs, &EMultipleValues{v})
 				} else {
 					vType := reflect.TypeOf(v[0].elem)
-					if !vType.AssignableTo(tragetMapValueType) {
-						errs = append(errs, &EIncompatibleTypesSlice{tragetMapValueType, v[0]})
+					if !vType.AssignableTo(targetMapValueType) {
+						errs = append(errs, &EIncompatibleTypesStorage{targetMapValueType, v[0]})
+					}
+					kType := reflect.TypeOf(k)
+					if !kType.AssignableTo(targetMapKeyType) {
+						errs = append(errs, &EIncompatibleTypesStorage{targetMapValueType, v[0]})
 					}
 				}
 			}
@@ -252,16 +257,9 @@ func getErrors() Errors {
 		targetSliceType := reflect.TypeOf(targetSlice).Elem()
 		targetSliceValue := reflect.ValueOf(targetSlice).Elem()
 		impl := provided[targetSlice]
-		if targetSliceValue.IsNil() {
-			if impl == nil {
-				errs = append(errs, &EImplementationNotProvided{elementsToAppend[0]})
-				continue
-			}
-		} else {
-			if impl != nil {
-				errs = append(errs, &EImplementationProvidedForNonNil{impl[0]})
-				continue
-			}
+		if targetSliceValue.IsNil() && impl == nil {
+			errs = append(errs, &EImplementationNotProvided{elementsToAppend[0]})
+			continue
 		}
 		for _, v := range elementsToAppend {
 			vType := reflect.TypeOf(v.elem)
@@ -270,26 +268,43 @@ func getErrors() Errors {
 				vType = vType.Elem()
 			}
 			if !vType.AssignableTo(targetSliceType.Elem()) {
-				errs = append(errs, &EIncompatibleTypesSlice{targetSliceType, v})
+				errs = append(errs, &EIncompatibleTypesStorage{targetSliceType, v})
 			}
 		}
 	}
 
-	// funcs only
 	for provVar, provSrcs := range provided {
-		if reflect.TypeOf(provVar).Elem().Kind() != reflect.Func {
+		provKind := reflect.TypeOf(provVar).Elem().Kind()
+		if provKind != reflect.Func && len(provSrcs) > 1 {
+			errs = append(errs, &EMultipleStorageImplementations{provSrcs})
 			continue
 		}
-		var found = false
-		for _, reqVar := range required {
+		provType := reflect.TypeOf(provSrcs[0].elem)
+		targetType := reflect.TypeOf(provVar).Elem()
+		targetKind := targetType.Kind()
 
-			if reqVar.elem == provVar {
-				found = true
-				break
+		switch targetKind {
+		case reflect.Func:
+			var found = false
+			for _, reqVar := range required {
+				if reqVar.elem == provVar {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
+			if !found {
+				errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
+			}
+		case reflect.Array, reflect.Slice, reflect.Map:
+			if isSlice(targetKind) {
+				targetSliceValue := reflect.ValueOf(provVar).Elem()
+				if !targetSliceValue.IsNil() {
+					errs = append(errs, &EImplementationProvidedForNonNil{provSrcs[0]})
+				}
+			}
+			if !provType.AssignableTo(targetType) {
+				errs = append(errs, &EIncompatibleTypesStorage{targetType, provSrcs[0]})
+			}
 		}
 	}
 
