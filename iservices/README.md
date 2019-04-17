@@ -1,6 +1,6 @@
 # Overview
 
-Declare, init, start, stop and finit services. Ref. [Test_BasicUsage](service_test.go)
+Declare, init, start, stop and finit services.
 
 ```go
 import (
@@ -25,7 +25,12 @@ import (
     // Start services
     ctx, err := iservices.InitAndStart(ctx)
 
+    // Use services
+    ...
+
     // Stop services
     iservices.StopAndFinit(ctx)
 
 ```    
+- [Interface declaration](interface.go)
+- [Interface test](interfacetest.go)

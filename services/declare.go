@@ -12,7 +12,7 @@ import (
 	"github.com/untillpro/godif/iservices"
 )
 
-// Declare s.e.
+// Declare requirements and provisions
 func Declare() {
 	godif.Provide(&iservices.InitAndStart, initAndStartImpl)
 	godif.Provide(&iservices.StopAndFinit, stopAndFinitImpl)
