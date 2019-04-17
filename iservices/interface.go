@@ -19,7 +19,7 @@ var Services []IService
 var InitAndStart func(ctx context.Context) (newCtx context.Context, err error)
 
 // StopAndFinit stops and finits services
-// All Stops are called asynchronously
+// All Stop's are called asynchronously
 // Stop's called only if appropriate Start() succeeded
 // When all Stop's finish, Finit's are called in reverse order of their provisions
 // Finit is called only if Init succeeded
