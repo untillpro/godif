@@ -25,7 +25,7 @@ Go dependency injection for functions (and not only...)
 - Require skipped, no error
 - Implement
   - Manually: `MyMap = map[string][]int{}`
-    - Use Provide() -> error
+    - Use `Provide()` -> error
   - Provide implementation: `godif.Provide(&MyMap, map[string][]int{})`
     - Multiple implementations -> error
     - slice of incompatible element type -> error
@@ -40,12 +40,13 @@ Go dependency injection for functions (and not only...)
 ## Provide slice element
 
 - Declare: `var MySlice []string`
-- Implement: `godif.Provide(&MySlice, []string{})`
 - Implement
   - Manually: `MySlice = []string{}`
-    - `godif.Provide(&MySlice, []string{})` -> Implementation provided for non-nil error
+    - Use `Provide()` -> error
   - Provide implementation: `godif.Provide(&MySlice, []string{})`
-  - No implementation -> Implementation not provided error
+    - Multiple implementations -> error
+    - Incompatible types -> error
+  - No implementation -> error
 - Add initial data if needed: `MySlice = append(MySlice, 42)`
   - Further `godif.ProvideSliceElement()` calls will append data to the existing slice
 - Provide data: 
