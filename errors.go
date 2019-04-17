@@ -11,13 +11,19 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // Errors is multiple errors container
 type Errors []error
 
-// EMultipleImplementations occurs if there are more than one provided implementation for one type
-type EMultipleImplementations struct {
+// EMultipleStorageImplementations occurs if there are more than one implementations provided for slice or map
+type EMultipleStorageImplementations struct {
+	provs []*srcElem
+}
+
+// EMultipleFuncImplementations occurs if there are more than one implementations provided for one func
+type EMultipleFuncImplementations struct {
 	req   *srcElem
 	provs []*srcElem
 }
@@ -43,8 +49,8 @@ type EIncompatibleTypesFunc struct {
 	prov *srcElem
 }
 
-// EIncompatibleTypesSlice error occurs if type of a requirement (array or slice) is incompatible to provided implementation
-type EIncompatibleTypesSlice struct {
+// EIncompatibleTypesStorage error occurs if type of an array or slice element or key or value of map is incompatible to provided implementation
+type EIncompatibleTypesStorage struct {
 	reqType reflect.Type
 	prov    *srcElem
 }
@@ -64,7 +70,17 @@ type EAlreadyResolved struct {
 	resolvePlace *src
 }
 
-func (e *EMultipleImplementations) Error() string {
+
+func (e *EMultipleStorageImplementations) Error() string {
+	var buffer bytes.Buffer
+	for _, impl := range e.provs {
+		buffer.WriteString(fmt.Sprintf("\t%s:%d\r\n", impl.file, impl.line))
+	}
+
+	return fmt.Sprintf("Multiple provisions of one storage at:\r\n%s", buffer.String())
+}
+
+func (e *EMultipleFuncImplementations) Error() string {
 	var buffer bytes.Buffer
 	for _, impl := range e.provs {
 		buffer.WriteString(fmt.Sprintf("\t%s:%d\r\n", impl.file, impl.line))
@@ -85,8 +101,8 @@ func (e *ENonAssignableRequirement) Error() string {
 	return fmt.Sprintf("Non-assignable requirement at %s:%d", e.req.file, e.req.line)
 }
 
-func (e *EIncompatibleTypesSlice) Error() string {
-	return fmt.Sprintf("Incompatible types: %s required but %s provided at %s:%d", e.reqType,
+func (e *EIncompatibleTypesStorage) Error() string {
+	return fmt.Sprintf("Incompatible types: %s required but %s used at %s:%d", e.reqType,
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 
@@ -116,10 +132,11 @@ func (e Errors) Error() string {
 	if len(e) == 1 {
 		return e[0].Error()
 	}
-
-	msg := "Multiple errors:"
+	
+	var sb strings.Builder
+	sb.WriteString("Multiple errors:")
 	for _, err := range e {
-		msg += "\n" + err.Error()
+		sb.WriteString("\n" + err.Error())
 	}
-	return msg
+	return sb.String()
 }
