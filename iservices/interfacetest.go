@@ -18,22 +18,32 @@ import (
 	"github.com/untillpro/godif"
 )
 
-func Test_BasicUsage(t *testing.T) {
+var declareImplementation func()
+
+// TestAll s.e.
+func TestAll(t *testing.T, declare func()) {
+	declareImplementation = declare
+	t.Run("TestBasicUsage", TestBasicUsage)
+	t.Run("TestFailedInit", TestFailedInit)
+	t.Run("TestFailedStart", TestFailedStart)
+}
+
+// TestBasicUsage s.e.
+func TestBasicUsage(t *testing.T) {
 
 	// We will need InitAndStart & StopAndFinit functions
 
 	godif.Require(&InitAndStart)
 	godif.Require(&StopAndFinit)
 
-	// Use default iservices implementation
+	// Declare passed implementation
 
-	/*iservices.*/
-	Declare()
+	declareImplementation()
 
 	// Provide own services
 
-	s1 := &MyService{Name: "Service1"}
-	s2 := &MyService{Name: "Service2"}
+	s1 := &myService{Name: "Service1"}
+	s2 := &myService{Name: "Service2"}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
@@ -75,17 +85,18 @@ func Test_BasicUsage(t *testing.T) {
 
 }
 
-func Test_FailedInit(t *testing.T) {
+// TestFailedInit s.e.
+func TestFailedInit(t *testing.T) {
 
 	// Declare iservices requirements and implementation
 
 	godif.Require(&InitAndStart)
 	godif.Require(&StopAndFinit)
-	/*iservices.*/ Declare()
+	declareImplementation()
 
 	// Provide services, s2 will fail on start
-	s1 := &MyService{Name: "Service1"}
-	s2 := &MyService{Name: "Service2", Failinit: true}
+	s1 := &myService{Name: "Service1"}
+	s2 := &myService{Name: "Service2", Failinit: true}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 	errs := godif.ResolveAll()
@@ -111,17 +122,18 @@ func Test_FailedInit(t *testing.T) {
 
 }
 
-func Test_FailedStart(t *testing.T) {
+// TestFailedStart s.e.
+func TestFailedStart(t *testing.T) {
 
 	// Declare iservices requirements and implementation
 
 	godif.Require(&InitAndStart)
 	godif.Require(&StopAndFinit)
-	/*iservices.*/ Declare()
+	declareImplementation()
 
 	// Provide services, s2 will fail on start
-	s1 := &MyService{Name: "Service1"}
-	s2 := &MyService{Name: "Service2", Failstart: true}
+	s1 := &myService{Name: "Service1"}
+	s2 := &myService{Name: "Service2", Failstart: true}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 	errs := godif.ResolveAll()
@@ -147,7 +159,7 @@ func Test_FailedStart(t *testing.T) {
 
 }
 
-type MyService struct {
+type myService struct {
 	Name      string
 	State     int // 0, 1(inited), 2(started), 3 (stopped)
 	Failstart bool
@@ -157,7 +169,7 @@ type MyService struct {
 
 type ctxKeyType string
 
-func (s *MyService) Init(ctx context.Context) (context.Context, error) {
+func (s *myService) Init(ctx context.Context) (context.Context, error) {
 	if s.Failinit {
 		fmt.Println(s.Name, "Init fails")
 		return ctx, errors.New(s.Name + ":" + "Init fails")
@@ -168,7 +180,7 @@ func (s *MyService) Init(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
-func (s *MyService) Start(ctx context.Context) error {
+func (s *myService) Start(ctx context.Context) error {
 	if s.Failstart {
 		fmt.Println(s.Name, "Start fails")
 		return errors.New(s.Name + ":" + "Start fails")
@@ -181,18 +193,18 @@ func (s *MyService) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *MyService) Stop(ctx context.Context) {
+func (s *myService) Stop(ctx context.Context) {
 	s.State--
 	fmt.Println(s.Name, "Stopped")
 }
 
-func (s *MyService) Finit(ctx context.Context) {
+func (s *myService) Finit(ctx context.Context) {
 	s.State--
 	fmt.Println(s.Name, "Finited")
 	s.Failinit = false
 	s.Failstart = false
 }
 
-func (s *MyService) String() string {
+func (s *myService) String() string {
 	return "I'm service " + s.Name
 }

@@ -5,20 +5,21 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-package iservices
+package services
 
 import (
 	"context"
 	"sync"
+
+	isvc "github.com/untillpro/godif/iservices"
 )
 
-
-var inited = []IService{}
-var started = []IService{}
+var inited = []isvc.IService{}
+var started = []isvc.IService{}
 
 func initAndStartImpl(ctx context.Context) (newCtx context.Context, err error) {
 	newCtx = ctx
-	for _, service := range Services {
+	for _, service := range isvc.Services {
 		newCtx, err = service.Init(newCtx)
 		if nil != err {
 			return newCtx, err
@@ -26,7 +27,7 @@ func initAndStartImpl(ctx context.Context) (newCtx context.Context, err error) {
 		inited = append(inited, service)
 	}
 
-	for _, service := range Services {
+	for _, service := range isvc.Services {
 		err := service.Start(newCtx)
 		if nil != err {
 			return newCtx, err
@@ -49,10 +50,10 @@ func stopAndFinitImpl(ctx context.Context) {
 		}()
 	}
 	wg.Wait()
-	started = []IService{}
+	started = []isvc.IService{}
 
 	for i := len(inited) - 1; i >= 0; i-- {
 		inited[i].Finit(ctx)
 	}
-	inited = []IService{}
+	inited = []isvc.IService{}
 }

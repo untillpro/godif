@@ -5,14 +5,15 @@ Declare, init, start, stop and finit services. Ref. [Test_BasicUsage](service_te
 ```go
 import (
     "github.com/untillpro/godif/iservices"
+    "github.com/untillpro/godif/services"    
 )
 
     // We will need InitAndStart and StopAndFinit
     godif.Require(&iservices.InitAndStart)
     godif.Require(&iservices.StopAndFinit)
 
-    // Declare default implementation
-    iservices.Declare()
+    // Declare implementation
+    services.Declare()
 
     // Provide services
     godif.ProvideSliceElement(&iservices.Services, ...)
