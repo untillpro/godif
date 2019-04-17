@@ -14,10 +14,13 @@ var Services []IService
 
 // InitAndStart all services
 // First all Init methods are called in order of registration, then all Start methods
+// If any error occurs it is immediately returned
 // StopAndFinit must be always called aftewards
 var InitAndStart func(ctx context.Context) (newCtx context.Context, err error)
 
 // StopAndFinit stops and finits services
 // All Stops are called asynchronously
-// When all Stop's finish, Finits are called in reverse order of their provisions
+// Stop's called only if appropriate Start() succeeded
+// When all Stop's finish, Finit's are called in reverse order of their provisions
+// Finit is called only if Init succeeded
 var StopAndFinit func(ctx context.Context)
