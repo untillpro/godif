@@ -1,6 +1,6 @@
 # Overview
 
-Declare, init, start, stop and finit services.
+Declare, start and stop services.
 
 # Just Run
 
