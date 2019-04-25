@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/untillpro/godif"
 )
 
@@ -25,12 +26,11 @@ var lastCtx context.Context
 // TestAll s.e.
 func TestAll(t *testing.T, declare func()) {
 	declareImplementation = declare
-	t.Run("TestRun", testRun)
-	t.Run("TestFailedStart", testFailedStart)
+	t.Run("Test_BasicUsage", testBasicUsage)
+	t.Run("Test_FailedStart", testFailedStart)
 }
 
-func testRun(t *testing.T) {
-
+func testBasicUsage(t *testing.T) {
 	godif.Require(&Start)
 	godif.Require(&Stop)
 
@@ -40,49 +40,41 @@ func testRun(t *testing.T) {
 
 	// Provide own services
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-	s1 := &myService{Name: "Service1", wg: &wg}
-	s2 := &myService{Name: "Service2", wg: &wg}
+	s1 := &MyService{Name: "Service1"}
+	s2 := &MyService{Name: "Service2"}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
-	// Init and start services
+	// Resolve all
+
+	errs := godif.ResolveAll()
+	defer godif.Reset()
+	require.Nil(t, errs, errs)
+
+	// Start services
 
 	var err error
-	done :=  make(chan string)
-	go func(){
-		fmt.Println("### Before Run")
-		err = Run()
-		fmt.Println("### After Run")		
-		assert.Nil(t, err)
-		assert.Equal(t, 0, s1.State)
-		assert.Equal(t, 0, s2.State)
-		done<-""
-	}()
+	ctx := context.Background()
+	ctx, err = Start(ctx)
+	defer Stop(ctx)
+	require.Nil(t, err)
 
-	defer func(){
-		fmt.Println("### Before Terminate()")
-		Terminate()
-		fmt.Println("### After Terminate()")		
-		<-done
-		fmt.Println("### Done")
-	}()
 
-	fmt.Println("### Before wg.Wait()")
-	wg.Wait()
-	fmt.Println("### After wg.Wait()")
+	// Check service state
 
-	fmt.Println("### Start testing ctx=", lastCtx)
-
-	//2 means "started"
 	assert.Equal(t, 1, s1.State)
 	assert.Equal(t, 1, s2.State)
 
 	//Make sure that value provided by service exist in ctx
+
 	assert.True(t, lastCtx.Value(ctxKeyType("Service1")).(bool))
 	assert.True(t, lastCtx.Value(ctxKeyType("Service2")).(bool))
 	assert.Nil(t, lastCtx.Value(ctxKeyType("Service3")))
+
+	// Stop services
+	Stop(ctx)
+	assert.Equal(t, 0, s1.State)
+	assert.Equal(t, 0, s2.State)
 }
 
 func testFailedStart(t *testing.T) {
@@ -95,8 +87,8 @@ func testFailedStart(t *testing.T) {
 
 	// Provide own services
 
-	s1 := &myService{Name: "Service1"}
-	s2 := &myService{Name: "Service2", Failstart: true}
+	s1 := &MyService{Name: "Service1"}
+	s2 := &MyService{Name: "Service2", Failstart: true}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
@@ -123,17 +115,20 @@ func testFailedStart(t *testing.T) {
 	assert.Equal(t, 0, s2.State)
 }
 
-type myService struct {
+// MyService for testing purposes
+type MyService struct {
 	Name      string
 	State     int // 0 (stopped), 1 (started)
 	Failstart bool
-	ctxValue  interface{}
-	wg *sync.WaitGroup
+	CtxValue  interface{}
+	Wg *sync.WaitGroup
+
 }
 
 type ctxKeyType string
 
-func (s *myService) Start(ctx context.Context) (context.Context, error) {
+// Start s.e.
+func (s *MyService) Start(ctx context.Context) (context.Context, error) {
 	if s.Failstart {
 		fmt.Println(s.Name, "Start fails")
 		return ctx, errors.New(s.Name + ":" + "Start fails")
@@ -141,18 +136,19 @@ func (s *myService) Start(ctx context.Context) (context.Context, error) {
 	s.State++
 	fmt.Println(s.Name, "Started")
 	ctx = context.WithValue(ctx, ctxKeyType(s.Name), true)
-	if nil != s.wg {
-		s.wg.Done()
+	if nil != s.Wg {
+		s.Wg.Done()
 	}
 	lastCtx = ctx
 	return ctx, nil
 }
 
-func (s *myService) Stop(ctx context.Context) {
+// Stop s.e.
+func (s *MyService) Stop(ctx context.Context) {
 	s.State--
 	fmt.Println(s.Name, "Stopped")
 }
 
-func (s *myService) String() string {
+func (s *MyService) String() string {
 	return "I'm service " + s.Name
 }

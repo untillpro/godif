@@ -10,7 +10,6 @@ package services
 import (
 	"context"
 	"sync"
-	"os"
 	"log"
 	"reflect"
 
@@ -18,7 +17,6 @@ import (
 )
 
 var started = []isvc.IService{}
-var signals chan os.Signal
 
 func implStart(ctx context.Context) (context.Context, error) {
 
@@ -29,7 +27,7 @@ func implStart(ctx context.Context) (context.Context, error) {
 		log.Println("[services] Starting " + serviceName +"...")
 		ctx, err = service.Start(ctx)
 		if nil != err{
-			log.Println("[services] Error starting service", err)
+			log.Println("[services] Error starting service:", err)
 			return ctx, err
 		}
 		started = append(started, service)
