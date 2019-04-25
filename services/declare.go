@@ -14,7 +14,7 @@ import (
 
 // Declare requirements and provisions
 func Declare() {
-	godif.Provide(&iservices.InitAndStart, initAndStartImpl)
-	godif.Provide(&iservices.StopAndFinit, stopAndFinitImpl)
+	godif.Provide(&iservices.Start, implStart)
+	godif.Provide(&iservices.Stop, implStop)
 	godif.Provide(&iservices.Services, make([]iservices.IService, 0, 50))
 }

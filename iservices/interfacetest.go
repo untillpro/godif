@@ -13,28 +13,26 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"sync"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/untillpro/godif"
 )
 
 var declareImplementation func()
+var lastCtx context.Context
 
 // TestAll s.e.
 func TestAll(t *testing.T, declare func()) {
 	declareImplementation = declare
-	t.Run("TestBasicUsage", TestBasicUsage)
-	t.Run("TestFailedInit", TestFailedInit)
-	t.Run("TestFailedStart", TestFailedStart)
+	t.Run("TestRun", testRun)
+	t.Run("TestFailedStart", testFailedStart)
 }
 
-// TestBasicUsage s.e.
-func TestBasicUsage(t *testing.T) {
+func testRun(t *testing.T) {
 
-	// We will need InitAndStart & StopAndFinit functions
-
-	godif.Require(&InitAndStart)
-	godif.Require(&StopAndFinit)
+	godif.Require(&Start)
+	godif.Require(&Stop)
 
 	// Declare passed implementation
 
@@ -42,8 +40,10 @@ func TestBasicUsage(t *testing.T) {
 
 	// Provide own services
 
-	s1 := &myService{Name: "Service1"}
-	s2 := &myService{Name: "Service2"}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	s1 := &myService{Name: "Service1", wg: &wg}
+	s2 := &myService{Name: "Service2", wg: &wg}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
@@ -56,153 +56,108 @@ func TestBasicUsage(t *testing.T) {
 
 	// Init and start services
 
-	ctx := context.Background()
-	ctx, err := InitAndStart(ctx)
-	assert.Nil(t, err)
+	var err error
+	done :=  make(chan string)
+	go func(){
+		fmt.Println("### Before Run")
+		err = Run()
+		fmt.Println("### After Run")		
+		assert.Nil(t, err)
+		assert.Equal(t, 0, s1.State)
+		assert.Equal(t, 0, s2.State)
+		done<-""
+	}()
+
+	defer func(){
+		fmt.Println("### Before Terminate()")
+		Terminate()
+		fmt.Println("### After Terminate()")		
+		<-done
+		fmt.Println("### Done")
+	}()
+
+	fmt.Println("### Before wg.Wait()")
+	wg.Wait()
+	fmt.Println("### After wg.Wait()")
+
+	fmt.Println("### Start testing ctx=", lastCtx)
+
 	//2 means "started"
-	assert.Equal(t, 2, s1.State)
-	assert.Equal(t, 2, s2.State)
-
-	// Context should be proper initialized
-
-	fmt.Println("Ctx=", ctx)
+	assert.Equal(t, 1, s1.State)
+	assert.Equal(t, 1, s2.State)
 
 	//Make sure that value provided by service exist in ctx
-	assert.True(t, ctx.Value(ctxKeyType("Service1")).(bool))
-	assert.True(t, s1.ctxValue.(bool))
-
-	assert.True(t, ctx.Value(ctxKeyType("Service2")).(bool))
-	assert.True(t, s2.ctxValue.(bool))
-
-	assert.Nil(t, ctx.Value(ctxKeyType("Service3")))
-
-	// Stop and finit services
-
-	StopAndFinit(ctx)
-	//State must be 0
-	assert.Equal(t, 0, s1.State)
-	assert.Equal(t, 0, s2.State)
-
+	assert.True(t, lastCtx.Value(ctxKeyType("Service1")).(bool))
+	assert.True(t, lastCtx.Value(ctxKeyType("Service2")).(bool))
+	assert.Nil(t, lastCtx.Value(ctxKeyType("Service3")))
 }
 
-// TestFailedInit s.e.
-func TestFailedInit(t *testing.T) {
+func testFailedStart(t *testing.T) {
+	godif.Require(&Start)
+	godif.Require(&Stop)
 
-	// Declare iservices requirements and implementation
+	// Declare passed implementation
 
-	godif.Require(&InitAndStart)
-	godif.Require(&StopAndFinit)
 	declareImplementation()
 
-	// Provide services, s2 will fail on start
+	// Provide own services
+
 	s1 := &myService{Name: "Service1"}
-	s2 := &myService{Name: "Service2", Failinit: true}
+	s2 := &myService{Name: "Service2", Failstart: true}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
+
+	// Resolve all
+
 	errs := godif.ResolveAll()
 	defer godif.Reset()
 	assert.Nil(t, errs)
+	fmt.Println("errs=", errs)
 
-	// Init and start services
+	// Start services
 
+	var err error
+	fmt.Println("### Before Start")
 	ctx := context.Background()
-	ctx, err := InitAndStart(ctx)
+	ctx, err = Start(ctx)
+	defer Stop(ctx)
+	fmt.Println("### After Start")		
 	assert.NotNil(t, err)
 	fmt.Println("err=", err)
 	assert.True(t, strings.Contains(err.Error(), "Service2"))
 	assert.False(t, strings.Contains(err.Error(), "Service1"))
 	assert.Equal(t, 1, s1.State)
 	assert.Equal(t, 0, s2.State)
-
-	// Stop and finit services
-
-	StopAndFinit(ctx)
-	assert.Equal(t, 0, s1.State)
-	assert.Equal(t, 0, s2.State)
-
-}
-
-// TestFailedStart s.e.
-func TestFailedStart(t *testing.T) {
-
-	// Declare iservices requirements and implementation
-
-	godif.Require(&InitAndStart)
-	godif.Require(&StopAndFinit)
-	declareImplementation()
-
-	// Provide services, s2 will fail on start
-	s1 := &myService{Name: "Service1"}
-	s2 := &myService{Name: "Service2", Failstart: true}
-	godif.ProvideSliceElement(&Services, s1)
-	godif.ProvideSliceElement(&Services, s2)
-	errs := godif.ResolveAll()
-	defer godif.Reset()
-	assert.Nil(t, errs)
-
-	// Init and start services
-
-	ctx := context.Background()
-	ctx, err := InitAndStart(ctx)
-	assert.NotNil(t, err)
-	fmt.Println("err=", err)
-	assert.True(t, strings.Contains(err.Error(), "Service2"))
-	assert.False(t, strings.Contains(err.Error(), "Service1"))
-	assert.Equal(t, 2, s1.State)
-	assert.Equal(t, 1, s2.State)
-
-	// Stop and finit services
-
-	StopAndFinit(ctx)
-	assert.Equal(t, 0, s1.State)
-	assert.Equal(t, 0, s2.State)
-
 }
 
 type myService struct {
 	Name      string
-	State     int // 0, 1(inited), 2(started), 3 (stopped)
+	State     int // 0 (stopped), 1 (started)
 	Failstart bool
-	Failinit  bool
 	ctxValue  interface{}
+	wg *sync.WaitGroup
 }
 
 type ctxKeyType string
 
-func (s *myService) Init(ctx context.Context) (context.Context, error) {
-	if s.Failinit {
-		fmt.Println(s.Name, "Init fails")
-		return ctx, errors.New(s.Name + ":" + "Init fails")
-	}
-	s.State++
-	fmt.Println(s.Name, "Inited")
-	ctx = context.WithValue(ctx, ctxKeyType(s.Name), true)
-	return ctx, nil
-}
-
-func (s *myService) Start(ctx context.Context) error {
+func (s *myService) Start(ctx context.Context) (context.Context, error) {
 	if s.Failstart {
 		fmt.Println(s.Name, "Start fails")
-		return errors.New(s.Name + ":" + "Start fails")
+		return ctx, errors.New(s.Name + ":" + "Start fails")
 	}
-
-	s.ctxValue = ctx.Value(ctxKeyType(s.Name))
-
 	s.State++
 	fmt.Println(s.Name, "Started")
-	return nil
+	ctx = context.WithValue(ctx, ctxKeyType(s.Name), true)
+	if nil != s.wg {
+		s.wg.Done()
+	}
+	lastCtx = ctx
+	return ctx, nil
 }
 
 func (s *myService) Stop(ctx context.Context) {
 	s.State--
 	fmt.Println(s.Name, "Stopped")
-}
-
-func (s *myService) Finit(ctx context.Context) {
-	s.State--
-	fmt.Println(s.Name, "Finited")
-	s.Failinit = false
-	s.Failstart = false
 }
 
 func (s *myService) String() string {

@@ -12,11 +12,11 @@ import "context"
 // IService s.e.
 type IService interface {
 	// If error is not nil ctx must be the one from param
-	Init(ctx context.Context) (newCtx context.Context, err error)
-	Start(ctx context.Context) error
+	Start(ctx context.Context) (newCtx context.Context, err error)
 
 	// Called only if Start() succeeds
 	Stop(ctx context.Context)
-	// Called only if Init() succeeds
-	Finit(ctx context.Context)
 }
+
+// Event describe events
+type Event string

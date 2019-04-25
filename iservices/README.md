@@ -9,11 +9,7 @@ import (
     "github.com/untillpro/godif"
 )
 
-    // We will need InitAndStart and StopAndFinit
-    godif.Require(&iservices.InitAndStart)
-    godif.Require(&iservices.StopAndFinit)
-
-    // Declare implementation
+    // Provice service implementation
     services.Declare()
 
     // Provide services
@@ -23,14 +19,22 @@ import (
     // Resole all
     errs := godif.ResolveAll()
 
-    // Start services
-    ctx, err := iservices.InitAndStart(ctx)
+    if justRun {
+        // Starts all services and wait until os.Interrupt received
+        // Can be terminated also using iservices.Terminate()
+        err := iservices.Run()
+    } else {
+        
+        // Start services
+        ctx, err := iservices.Start(context.Background())
 
-    // Use services
-    ...
+        // Use services
+        ...
 
-    // Stop services
-    iservices.StopAndFinit(ctx)
+        // Stop services
+        iservices.Stop(ctx)
+
+    }
 
 ```    
 - [Interface declaration](interface.go)

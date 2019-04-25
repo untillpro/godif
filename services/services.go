@@ -10,37 +10,34 @@ package services
 import (
 	"context"
 	"sync"
+	"os"
+	"log"
 
 	isvc "github.com/untillpro/godif/iservices"
 )
 
-var inited = []isvc.IService{}
 var started = []isvc.IService{}
+var signals chan os.Signal
 
-func initAndStartImpl(ctx context.Context) (newCtx context.Context, err error) {
-	newCtx = ctx
-	for _, service := range isvc.Services {
-		newCtx, err = service.Init(newCtx)
-		if nil != err {
-			return newCtx, err
-		}
-		inited = append(inited, service)
-	}
+func implStart(ctx context.Context) (context.Context, error) {
 
+	log.Println("[services] Starting...")
 	for _, service := range isvc.Services {
-		err := service.Start(newCtx)
-		if nil != err {
-			return newCtx, err
+		var err error
+		ctx, err = service.Start(ctx)
+		if nil != err{
+			log.Println("[services] Error starting services", err)
+			return ctx, err
 		}
 		started = append(started, service)
 	}
-	return newCtx, nil
+	log.Println("[services] Started")
+	return ctx, nil
 }
 
-func stopAndFinitImpl(ctx context.Context) {
-
+func implStop(ctx context.Context) {
+	log.Println("[services] Stopping...")
 	var wg sync.WaitGroup
-
 	for _, service := range started {
 		s := service
 		wg.Add(1)
@@ -51,9 +48,5 @@ func stopAndFinitImpl(ctx context.Context) {
 	}
 	wg.Wait()
 	started = []isvc.IService{}
-
-	for i := len(inited) - 1; i >= 0; i-- {
-		inited[i].Finit(ctx)
-	}
-	inited = []isvc.IService{}
+	log.Println("[services] All services stopped")
 }

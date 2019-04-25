@@ -7,20 +7,17 @@
 
 package iservices
 
-import "context"
+import(
+	"context"
+)
 
 // Services elements should be provided by others
 var Services []IService
 
-// InitAndStart all services
-// First all Init methods are called in order of registration, then all Start methods
-// If any error occurs it is immediately returned
-// StopAndFinit must be always called aftewards
-var InitAndStart func(ctx context.Context) (newCtx context.Context, err error)
+// Start calls Start methods in order of provision
+// If any error it is immediately returned
+// Ref also Run() in helpers.go
+var Start func(ctx context.Context) (context.Context, error)
 
-// StopAndFinit stops and finits services
-// All Stop's are called asynchronously
-// Stop's called only if appropriate Start() succeeded
-// When all Stop's finish, Finit's are called in reverse order of their provisions
-// Finit is called only if Init succeeded
-var StopAndFinit func(ctx context.Context)
+// Stop asyncronously calls all Stop methods
+var Stop func(ctx context.Context)
