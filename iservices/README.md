@@ -6,6 +6,7 @@ Declare, init, start, stop and finit services.
 import (
     "github.com/untillpro/godif/iservices"
     "github.com/untillpro/godif/services"    
+    "github.com/untillpro/godif"
 )
 
     // We will need InitAndStart and StopAndFinit
