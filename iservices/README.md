@@ -16,24 +16,27 @@ import (
     godif.ProvideSliceElement(&iservices.Services, ...)
     godif.ProvideSliceElement(&iservices.Services, ...)
 
-    // Resole all
-    errs := godif.ResolveAll()
-
     if justRun {
-        // Starts all services and wait until os.Interrupt received
+        // ResoleAll(), starts all services and wait until os.Interrupt received
         // Can be terminated also using iservices.Terminate()
         err := iservices.Run()
     } else {
+
+        // Resole all
+        errs := godif.ResolveAll()
+
+        if len(errs) >0 {
+            log.Fatal("Resolve error", errs)
+        }
         
+        defer godif.Reset()
+
         // Start services
         ctx, err := iservices.Start(context.Background())
+        defer iservices.Stop(ctx)
 
         // Use services
         ...
-
-        // Stop services
-        iservices.Stop(ctx)
-
     }
 
 ```    

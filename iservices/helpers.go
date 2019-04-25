@@ -12,16 +12,22 @@
 	"os"
 	"os/signal"
 	"log"
+	"github.com/untillpro/godif"
  )
 
 var signals chan os.Signal
 
-// Run starts all services and wait until Terminate() is called
-// All Start  methods are called in order of registration
-// If any error during start occurs it is immediately returned
+// Run calls godif.ResolveAll(), starts all services and wait until Terminate() is called
 // When Terminate() is called ctx is cancelled and all Stop's are called asynchronously
 // # Events
 func Run() error {
+
+	errs := godif.ResolveAll()
+	if len(errs) > 0{
+		return errs
+	}
+	defer godif.Reset()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	
 	signals = make(chan os.Signal, 1)
@@ -35,8 +41,8 @@ func Run() error {
 		return err
 	}
 	
-	<-signals
-	log.Println("[services] Termination signal received")
+	sig := <- signals
+	log.Println("[services] Signal received:", sig)
 	cancel()
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"os"
 	"log"
+	"reflect"
 
 	isvc "github.com/untillpro/godif/iservices"
 )
@@ -21,17 +22,19 @@ var signals chan os.Signal
 
 func implStart(ctx context.Context) (context.Context, error) {
 
-	log.Println("[services] Starting...")
+	log.Println("[services] Starting services...")
 	for _, service := range isvc.Services {
 		var err error
+		serviceName := reflect.TypeOf(service).String()
+		log.Println("[services] Starting " + serviceName +"...")
 		ctx, err = service.Start(ctx)
 		if nil != err{
-			log.Println("[services] Error starting services", err)
+			log.Println("[services] Error starting service", err)
 			return ctx, err
 		}
 		started = append(started, service)
 	}
-	log.Println("[services] Started")
+	log.Println("[services] All services started")
 	return ctx, nil
 }
 

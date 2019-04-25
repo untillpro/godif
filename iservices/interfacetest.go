@@ -47,13 +47,6 @@ func testRun(t *testing.T) {
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
-	// Resolve all
-
-	errs := godif.ResolveAll()
-	defer godif.Reset()
-	assert.Nil(t, errs)
-	fmt.Println("errs=", errs)
-
 	// Init and start services
 
 	var err error
