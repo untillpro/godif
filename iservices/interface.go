@@ -14,9 +14,8 @@ import(
 // Services elements should be provided by others
 var Services []IService
 
-// Start calls Start methods in order of provision
-// If any error it is immediately returned
-// Ref also Run() in helpers.go
+// Start calls Services' Start methods in order of provision
+// If any error occurs it is immediately returned
 var Start func(ctx context.Context) (context.Context, error)
 
 // Stop asyncronously calls all Stop methods
