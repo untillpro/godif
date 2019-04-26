@@ -24,9 +24,7 @@ var signals chan os.Signal
 // # Events
 func Run() error {
 
-	Declare()
-	godif.Require(&iservices.Start)
-	godif.Require(&iservices.Stop)
+	DeclareRequire()
 
 	errs := godif.ResolveAll()
 	defer godif.Reset()

@@ -18,3 +18,10 @@ func Declare() {
 	godif.Provide(&iservices.Stop, implStop)
 	godif.Provide(&iservices.Services, make([]iservices.IService, 0, 50))
 }
+
+// DeclareRequire used in Run, also useful for testing
+func DeclareRequire() {
+	Declare()
+	godif.Require(&iservices.Start)
+	godif.Require(&iservices.Stop)
+}
