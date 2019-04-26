@@ -9,9 +9,9 @@ package services
 
 import (
 	"context"
-	"sync"
 	"log"
 	"reflect"
+	"sync"
 
 	isvc "github.com/untillpro/godif/iservices"
 )
@@ -24,9 +24,9 @@ func implStart(ctx context.Context) (context.Context, error) {
 	for _, service := range isvc.Services {
 		var err error
 		serviceName := reflect.TypeOf(service).String()
-		log.Println("[services] Starting " + serviceName +"...")
+		log.Println("[services] Starting " + serviceName + "...")
 		ctx, err = service.Start(ctx)
-		if nil != err{
+		if nil != err {
 			log.Println("[services] Error starting service:", err)
 			return ctx, err
 		}

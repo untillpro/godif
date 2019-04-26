@@ -13,6 +13,6 @@ import (
 	"github.com/untillpro/godif/iservices"
 )
 
-func Test_Implementation(t *testing.T) {
-	iservices.TestAll(t, Declare)
+func Test_Impl(t *testing.T) {
+	iservices.TestImpl(t, Declare)
 }

@@ -12,8 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"testing"
 	"sync"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,8 +23,8 @@ import (
 var declareImplementation func()
 var lastCtx context.Context
 
-// TestAll s.e.
-func TestAll(t *testing.T, declare func()) {
+// TestImpl s.e.
+func TestImpl(t *testing.T, declare func()) {
 	declareImplementation = declare
 	t.Run("Test_BasicUsage", testBasicUsage)
 	t.Run("Test_FailedStart", testFailedStart)
@@ -58,7 +58,6 @@ func testBasicUsage(t *testing.T) {
 	ctx, err = Start(ctx)
 	defer Stop(ctx)
 	require.Nil(t, err)
-
 
 	// Check service state
 
@@ -106,7 +105,7 @@ func testFailedStart(t *testing.T) {
 	ctx := context.Background()
 	ctx, err = Start(ctx)
 	defer Stop(ctx)
-	fmt.Println("### After Start")		
+	fmt.Println("### After Start")
 	assert.NotNil(t, err)
 	fmt.Println("err=", err)
 	assert.True(t, strings.Contains(err.Error(), "Service2"))
@@ -121,8 +120,7 @@ type MyService struct {
 	State     int // 0 (stopped), 1 (started)
 	Failstart bool
 	CtxValue  interface{}
-	Wg *sync.WaitGroup
-
+	Wg        *sync.WaitGroup
 }
 
 type ctxKeyType string

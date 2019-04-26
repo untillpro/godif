@@ -5,16 +5,17 @@
  * LICENSE file in the root directory of this source tree.
  */
 
- package services
+package services
 
- import (
+import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
-	"log"
+
 	"github.com/untillpro/godif"
 	"github.com/untillpro/godif/iservices"
- )
+)
 
 var signals chan os.Signal
 
@@ -28,32 +29,31 @@ func Run() error {
 	godif.Require(&iservices.Stop)
 
 	errs := godif.ResolveAll()
-	defer godif.Reset()		
-	if len(errs) > 0{
+	defer godif.Reset()
+	if len(errs) > 0 {
 		return errs
 	}
 
-
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	signals = make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 	defer iservices.Stop(ctx)
 
 	var err error
 	ctx, err = iservices.Start(ctx)
-	if nil != err{
+	if nil != err {
 		cancel()
 		return err
 	}
-	
-	sig := <- signals
+
+	sig := <-signals
 	log.Println("[services] Signal received:", sig)
 	cancel()
 	return nil
 }
 
 // Terminate running Run
-func Terminate(){
-	signals<-os.Interrupt
+func Terminate() {
+	signals <- os.Interrupt
 }
