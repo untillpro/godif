@@ -55,9 +55,9 @@ type EIncompatibleTypesStorage struct {
 	prov    *srcElem
 }
 
-// EProvidedNotUsed error occurs if something is provided but not required
-type EProvidedNotUsed struct {
-	prov *srcElem
+// EPackageNotUsed s.e.
+type EPackageNotUsed struct {
+	pkgName string
 }
 
 // EMultipleValues error occurs if more than one value is provided per one key by ProvideMapValue() call
@@ -111,8 +111,8 @@ func (e *EIncompatibleTypesFunc) Error() string {
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 
-func (e *EProvidedNotUsed) Error() string {
-	return fmt.Sprintf("%T Provided at %s:%d but not used", e.prov.elem, e.prov.file, e.prov.line)
+func (e *EPackageNotUsed) Error() string {
+	return fmt.Sprintf("Have provisions from package %s but nothing is required from this package", e.pkgName)
 }
 
 func (e *EMultipleValues) Error() string {

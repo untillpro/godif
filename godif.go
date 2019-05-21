@@ -10,11 +10,13 @@ package godif
 import (
 	"reflect"
 	"runtime"
+	"strings"
 )
 
 type src struct {
 	file string
 	line int
+	pkg string
 }
 
 type srcElem struct {
@@ -38,8 +40,8 @@ func createVars() {
 	sliceElements = make(map[interface{}][]*srcElem)
 }
 
-func newSrcElem(file string, line int, elem interface{}) *srcElem {
-	return &srcElem{&src{file, line}, elem}
+func newSrcElem(file string, line int, pkg string, elem interface{}) *srcElem {
+	return &srcElem{&src{file, line, pkg}, elem}
 }
 
 // Reset clears all assignations
@@ -73,7 +75,7 @@ func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
 	if sliceElements[pointerToSlice] == nil {
 		sliceElements[pointerToSlice] = make([]*srcElem, 0)
 	}
-	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], newSrcElem(file, line, element))
+	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], newSrcElem(file, line, "", element))
 }
 
 // ProvideKeyValue s.e.
@@ -82,19 +84,21 @@ func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{
 	if keyValues[pointerToMap] == nil {
 		keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
 	}
-	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], newSrcElem(file, line, value))
+	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], newSrcElem(file, line, "", value))
 }
 
 // Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
-	_, file, line, _ := runtime.Caller(1)
-	provided[ref] = append(provided[ref], newSrcElem(file, line, funcImplementation))
+	pc, file, line, _ := runtime.Caller(1)
+	nameFull := runtime.FuncForPC(pc).Name() 
+	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
+	provided[ref] = append(provided[ref], newSrcElem(file, line, pkgName, funcImplementation))
 }
 
 // Require registers dep
 func Require(toInject interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	required = append(required, newSrcElem(file, line, toInject))
+	required = append(required, newSrcElem(file, line, "", toInject))
 }
 
 // ResolveAll all deps
@@ -163,7 +167,7 @@ func ResolveAll() Errors {
 	}
 
 	_, file, line, _ := runtime.Caller(1)
-	resolveSrc = &src{file, line}
+	resolveSrc = &src{file, line, ""}
 
 	return nil
 }
@@ -177,6 +181,9 @@ func getErrors() Errors {
 	if resolveSrc != nil {
 		return []error{&EAlreadyResolved{resolveSrc}}
 	}
+
+	requiredPackages := make(map[string]bool)
+	
 	for _, req := range required {
 
 		impls := provided[req.elem]
@@ -187,7 +194,7 @@ func getErrors() Errors {
 
 		if len(impls) > 1 {
 			errs = append(errs, &EMultipleFuncImplementations{req, impls})
-		}
+		} 
 
 		v := reflect.ValueOf(req.elem).Elem()
 		if !v.CanSet() {
@@ -197,9 +204,10 @@ func getErrors() Errors {
 		reqType := reflect.TypeOf(req.elem).Elem()
 
 		for _, impl := range impls {
+			requiredPackages[impl.pkg] = true
 			implType := reflect.TypeOf(impl.elem)
 			if !implType.AssignableTo(reqType) {
-				errs = append(errs, &EIncompatibleTypesFunc{req, impls[0]})
+				errs = append(errs, &EIncompatibleTypesFunc{req, impl})
 			}
 		}
 	}
@@ -273,6 +281,8 @@ func getErrors() Errors {
 		}
 	}
 
+	pkgNotUsedErrorsAppended := make(map[string]bool)
+
 	for provVar, provSrcs := range provided {
 		provKind := reflect.TypeOf(provVar).Elem().Kind()
 		if provKind != reflect.Func && len(provSrcs) > 1 {
@@ -282,18 +292,14 @@ func getErrors() Errors {
 		provType := reflect.TypeOf(provSrcs[0].elem)
 		targetType := reflect.TypeOf(provVar).Elem()
 		targetKind := targetType.Kind()
-
+		
 		switch targetKind {
 		case reflect.Func:
-			var found = false
-			for _, reqVar := range required {
-				if reqVar.elem == provVar {
-					found = true
-					break
+			if _, required := requiredPackages[provSrcs[0].pkg]; !required {
+				if _, appended := pkgNotUsedErrorsAppended[provSrcs[0].pkg]; !appended {
+					errs = append(errs, &EPackageNotUsed{provSrcs[0].pkg})
+					pkgNotUsedErrorsAppended[provSrcs[0].pkg] = true
 				}
-			}
-			if !found {
-				errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
 			}
 		case reflect.Array, reflect.Slice, reflect.Map:
 			if isSlice(targetKind) {
