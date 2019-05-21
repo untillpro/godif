@@ -8,3 +8,5 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/objx v0.2.0/go.mod h1:qt09Ya8vawLte6SNmTgCsAVtYtaKzEcn8ATUoHMkEqE=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+github.com/untillpro/gochips v1.9.0 h1:RpvKppiix6uzKSVBBQNlrD17dk7QCtVLw3EBNDOH5DI=
+github.com/untillpro/gochips v1.9.0/go.mod h1:us8QSJtQx+8SiWFqh2oAT7UMzhF73t21p3WFGn6Apao=
