@@ -16,7 +16,6 @@ import (
 type src struct {
 	file string
 	line int
-	pkg string
 }
 
 type srcElem struct {
@@ -24,8 +23,13 @@ type srcElem struct {
 	elem interface{}
 }
 
+type srcPkgElem struct {
+	*srcElem
+	pkg string
+}
+
 var required []*srcElem
-var provided map[interface{}][]*srcElem
+var provided map[interface{}][]*srcPkgElem
 var keyValues map[interface{}]map[interface{}][]*srcElem
 var sliceElements map[interface{}][]*srcElem
 var resolveSrc *src
@@ -35,13 +39,17 @@ func init() {
 }
 
 func createVars() {
-	provided = make(map[interface{}][]*srcElem)
+	provided = make(map[interface{}][]*srcPkgElem)
 	keyValues = make(map[interface{}]map[interface{}][]*srcElem)
 	sliceElements = make(map[interface{}][]*srcElem)
 }
 
-func newSrcElem(file string, line int, pkg string, elem interface{}) *srcElem {
-	return &srcElem{&src{file, line, pkg}, elem}
+func newSrcElem(file string, line int, elem interface{}) *srcElem {
+	return &srcElem{&src{file, line}, elem}
+}
+
+func newSrcPkgElem(file string, line int, pkg string, elem interface{}) *srcPkgElem {
+	return &srcPkgElem{newSrcElem(file, line, elem), pkg}
 }
 
 // Reset clears all assignations
@@ -75,7 +83,7 @@ func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
 	if sliceElements[pointerToSlice] == nil {
 		sliceElements[pointerToSlice] = make([]*srcElem, 0)
 	}
-	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], newSrcElem(file, line, "", element))
+	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], newSrcElem(file, line, element))
 }
 
 // ProvideKeyValue s.e.
@@ -84,7 +92,7 @@ func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{
 	if keyValues[pointerToMap] == nil {
 		keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
 	}
-	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], newSrcElem(file, line, "", value))
+	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], newSrcElem(file, line, value))
 }
 
 // Provide registers implementation of ref type
@@ -92,13 +100,13 @@ func Provide(ref interface{}, funcImplementation interface{}) {
 	pc, file, line, _ := runtime.Caller(1)
 	nameFull := runtime.FuncForPC(pc).Name() 
 	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
-	provided[ref] = append(provided[ref], newSrcElem(file, line, pkgName, funcImplementation))
+	provided[ref] = append(provided[ref], newSrcPkgElem(file, line, pkgName, funcImplementation))
 }
 
 // Require registers dep
 func Require(toInject interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	required = append(required, newSrcElem(file, line, "", toInject))
+	required = append(required, newSrcElem(file, line, toInject))
 }
 
 // ResolveAll all deps
@@ -167,7 +175,7 @@ func ResolveAll() Errors {
 	}
 
 	_, file, line, _ := runtime.Caller(1)
-	resolveSrc = &src{file, line, ""}
+	resolveSrc = &src{file, line}
 
 	return nil
 }
@@ -309,7 +317,7 @@ func getErrors() Errors {
 				}
 			}
 			if !provType.AssignableTo(targetType) {
-				errs = append(errs, &EIncompatibleTypesStorage{targetType, provSrcs[0]})
+				errs = append(errs, &EIncompatibleTypesStorage{targetType, provSrcs[0].srcElem})
 			}
 		}
 	}

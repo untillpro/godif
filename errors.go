@@ -19,13 +19,13 @@ type Errors []error
 
 // EMultipleStorageImplementations occurs if there are more than one implementations provided for slice or map
 type EMultipleStorageImplementations struct {
-	provs []*srcElem
+	provs []*srcPkgElem
 }
 
 // EMultipleFuncImplementations occurs if there are more than one implementations provided for one func
 type EMultipleFuncImplementations struct {
 	req   *srcElem
-	provs []*srcElem
+	provs []*srcPkgElem
 }
 
 // EImplementationNotProvided error occurs if there is no implementation provided for a type
@@ -35,7 +35,7 @@ type EImplementationNotProvided struct {
 
 // EImplementationProvidedForNonNil error occurs if target value is not nil but implementation provided
 type EImplementationProvidedForNonNil struct {
-	req *srcElem
+	prov *srcPkgElem
 }
 
 // ENonAssignableRequirement error occurs if non-assignable (e.g. not variable) requirement is declared
@@ -46,7 +46,7 @@ type ENonAssignableRequirement struct {
 // EIncompatibleTypesFunc error occurs if type of a requirement (func) is incompatible to provided implementation
 type EIncompatibleTypesFunc struct {
 	req  *srcElem
-	prov *srcElem
+	prov *srcPkgElem
 }
 
 // EIncompatibleTypesStorage error occurs if type of an array or slice element or key or value of map is incompatible to provided implementation
@@ -94,7 +94,7 @@ func (e *EImplementationNotProvided) Error() string {
 }
 
 func (e *EImplementationProvidedForNonNil) Error() string {
-	return fmt.Sprintf("Implementation provided for non-nil %T at %s:%d", e.req.elem, e.req.file, e.req.line)
+	return fmt.Sprintf("Implementation provided for non-nil %T at %s:%d", e.prov.elem, e.prov.file, e.prov.line)
 }
 
 func (e *ENonAssignableRequirement) Error() string {
