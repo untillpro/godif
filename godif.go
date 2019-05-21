@@ -10,6 +10,7 @@ package godif
 import (
 	"reflect"
 	"runtime"
+	"strings"
 )
 
 type src struct {
@@ -22,8 +23,13 @@ type srcElem struct {
 	elem interface{}
 }
 
+type srcPkgElem struct {
+	*srcElem
+	pkg string
+}
+
 var required []*srcElem
-var provided map[interface{}][]*srcElem
+var provided map[interface{}][]*srcPkgElem
 var keyValues map[interface{}]map[interface{}][]*srcElem
 var sliceElements map[interface{}][]*srcElem
 var resolveSrc *src
@@ -33,13 +39,17 @@ func init() {
 }
 
 func createVars() {
-	provided = make(map[interface{}][]*srcElem)
+	provided = make(map[interface{}][]*srcPkgElem)
 	keyValues = make(map[interface{}]map[interface{}][]*srcElem)
 	sliceElements = make(map[interface{}][]*srcElem)
 }
 
 func newSrcElem(file string, line int, elem interface{}) *srcElem {
 	return &srcElem{&src{file, line}, elem}
+}
+
+func newSrcPkgElem(file string, line int, pkg string, elem interface{}) *srcPkgElem {
+	return &srcPkgElem{newSrcElem(file, line, elem), pkg}
 }
 
 // Reset clears all assignations
@@ -87,8 +97,10 @@ func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{
 
 // Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
-	_, file, line, _ := runtime.Caller(1)
-	provided[ref] = append(provided[ref], newSrcElem(file, line, funcImplementation))
+	pc, file, line, _ := runtime.Caller(1)
+	nameFull := runtime.FuncForPC(pc).Name() 
+	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
+	provided[ref] = append(provided[ref], newSrcPkgElem(file, line, pkgName, funcImplementation))
 }
 
 // Require registers dep
@@ -177,6 +189,9 @@ func getErrors() Errors {
 	if resolveSrc != nil {
 		return []error{&EAlreadyResolved{resolveSrc}}
 	}
+
+	requiredPackages := make(map[string]bool)
+	
 	for _, req := range required {
 
 		impls := provided[req.elem]
@@ -187,7 +202,7 @@ func getErrors() Errors {
 
 		if len(impls) > 1 {
 			errs = append(errs, &EMultipleFuncImplementations{req, impls})
-		}
+		} 
 
 		v := reflect.ValueOf(req.elem).Elem()
 		if !v.CanSet() {
@@ -197,9 +212,10 @@ func getErrors() Errors {
 		reqType := reflect.TypeOf(req.elem).Elem()
 
 		for _, impl := range impls {
+			requiredPackages[impl.pkg] = true
 			implType := reflect.TypeOf(impl.elem)
 			if !implType.AssignableTo(reqType) {
-				errs = append(errs, &EIncompatibleTypesFunc{req, impls[0]})
+				errs = append(errs, &EIncompatibleTypesFunc{req, impl})
 			}
 		}
 	}
@@ -273,6 +289,8 @@ func getErrors() Errors {
 		}
 	}
 
+	pkgNotUsedErrorsAppended := make(map[string]bool)
+
 	for provVar, provSrcs := range provided {
 		provKind := reflect.TypeOf(provVar).Elem().Kind()
 		if provKind != reflect.Func && len(provSrcs) > 1 {
@@ -282,18 +300,14 @@ func getErrors() Errors {
 		provType := reflect.TypeOf(provSrcs[0].elem)
 		targetType := reflect.TypeOf(provVar).Elem()
 		targetKind := targetType.Kind()
-
+		
 		switch targetKind {
 		case reflect.Func:
-			var found = false
-			for _, reqVar := range required {
-				if reqVar.elem == provVar {
-					found = true
-					break
+			if _, required := requiredPackages[provSrcs[0].pkg]; !required {
+				if _, appended := pkgNotUsedErrorsAppended[provSrcs[0].pkg]; !appended {
+					errs = append(errs, &EPackageNotUsed{provSrcs[0].pkg})
+					pkgNotUsedErrorsAppended[provSrcs[0].pkg] = true
 				}
-			}
-			if !found {
-				errs = append(errs, &EProvidedNotUsed{provSrcs[0]})
 			}
 		case reflect.Array, reflect.Slice, reflect.Map:
 			if isSlice(targetKind) {
@@ -303,7 +317,7 @@ func getErrors() Errors {
 				}
 			}
 			if !provType.AssignableTo(targetType) {
-				errs = append(errs, &EIncompatibleTypesStorage{targetType, provSrcs[0]})
+				errs = append(errs, &EIncompatibleTypesStorage{targetType, provSrcs[0].srcElem})
 			}
 		}
 	}

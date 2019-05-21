@@ -8,6 +8,7 @@
 package godif
 
 import (
+	"strings"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -179,28 +180,46 @@ func TestErrorOnIncompatibleTypes(t *testing.T) {
 	assert.Nil(t, injected)
 }
 
-func TestErrorOnProvidedButNotUsed(t *testing.T) {
+func TestPackageUsedIfSomethigRequired(t *testing.T) {
 	Reset()
-	var injected func(x int, y int) int
 
-	_, implFile, implLine, _ := runtime.Caller(0)
-	Provide(&injected, f)
+	var injected1 func(x int, y int) int
+	var injected2 func(x float32) float32
+
+	Provide(&injected1, f)
+	Provide(&injected2, f2)
+	Require(&injected1)
 
 	errs := ResolveAll()
-	assert.Nil(t, injected)
-
-	fmt.Println(errs)
-
-	if e, ok := errs[0].(*EProvidedNotUsed); ok && len(errs) == 1 {
-		assert.Equal(t, implFile, e.prov.file)
-		assert.Equal(t, implLine+1, e.prov.line)
-	} else {
-		t.Fatal(errs)
+	if errs != nil {
+		t.Fatal()
 	}
+	assert.NotNil(t, injected1)
+	assert.NotNil(t, injected2)
+}
 
-	Require(&injected)
-	errs = ResolveAll()
-	assert.Nil(t, errs)
+func TestPackageNotUsedIfNothingRequired(t *testing.T) {
+	Reset()
+
+	var injected1 func(x int, y int) int
+	var injected2 func(x float32) float32
+
+	Provide(&injected1, f)
+	Provide(&injected2, f2)
+
+	errs := ResolveAll()
+
+	pc, _, _, _ := runtime.Caller(0)
+	nameFull := runtime.FuncForPC(pc).Name() 
+	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
+	if e, ok := errs[0].(*EPackageNotUsed); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, pkgName, e.pkgName)
+	} else {
+		t.Fatal()
+	}
+	assert.Nil(t, injected1)
+	assert.Nil(t, injected2)
 }
 
 func TestDataInject(t *testing.T) {

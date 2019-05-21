@@ -9,13 +9,24 @@ Go dependency injection for functions (and not only...)
 
 # Usage
 
+## Provide func implementation
+
+- Declare: `var toInject func()`
+- Require: `godif.Require(&toInject)`
+- Provide implementation: `godif.Provide(&toInject, f)`
+  - Incompatible types -> error
+  - More than one implementations provided -> error
+- No implementation -> error
+- Something provided from a package but nothing is required for the package -> error (package is not used)
+- Resolve: `godif.ResolveAll()`
+
 ## Provide key-value
 
 - Declare: `var MyMap map[string]int`
 - Require skipped, no error
 - Implement
   - Manually: `MyMap = map[string]int{}`
-    - Use Provide() -> error
+    - Use `godif.Provide()` -> error
   - Provide implementation: `godif.Provide(&MyMap, map[string]int{})`
     - Multiple implementations -> error
     - Non-map or map of incompatible key or value type -> error
@@ -23,6 +34,8 @@ Go dependency injection for functions (and not only...)
 - Provide data: `godif.ProvideKeyValue(&MyMap, "key1", 1)`
   - Multiple values per key -> error
   - Key or value of different types provided -> error
+- Resolve: `godif.ResolveAll()`
+
 
 ## Provide key-slice
 
@@ -41,6 +54,7 @@ Go dependency injection for functions (and not only...)
   - `godif.ProvideKeyValue(&MyMap, "key1", 1)`
   - `godif.ProvideKeyValue(&MyMap, "key1", 2)`
   - `godif.ProvideKeyValue(&MyMap, "key1", []int{3, 4})`
+- Resolve: `godif.ResolveAll()`
 
 ## Provide slice element
 
@@ -57,6 +71,7 @@ Go dependency injection for functions (and not only...)
 - Provide data: 
   - `godif.ProvideSliceElement(&MySlice, "str1")`
   - `godif.ProvideSliceElement(&MySlice, []string{"str3", "str4"})`
+- Resolve: `godif.ResolveAll()`
 
 ## Reset all injections
 - `godif.Reset()`
