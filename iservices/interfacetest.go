@@ -26,8 +26,9 @@ var lastCtx context.Context
 // TestImpl s.e.
 func TestImpl(t *testing.T, declare func()) {
 	declareImplementation = declare
-	t.Run("Test_BasicUsage", testBasicUsage)
-	t.Run("Test_FailedStart", testFailedStart)
+	t.Run("testBasicUsage", testBasicUsage)
+	t.Run("testFailedStart", testFailedStart)
+	t.Run("testStopOrder", testStopOrder)
 }
 
 func testBasicUsage(t *testing.T) {
@@ -112,6 +113,37 @@ func testFailedStart(t *testing.T) {
 	assert.False(t, strings.Contains(err.Error(), "Service1"))
 	assert.Equal(t, 1, s1.State)
 	assert.Equal(t, 0, s2.State)
+}
+
+func testStopOrder(t *testing.T) {
+	godif.Require(&Start)
+	godif.Require(&Stop)
+
+	// Declare passed implementation
+
+	declareImplementation()
+
+	// Provide own services
+
+	for i := 0; i < 100; i++ {
+		s := &MyService{Name: fmt.Sprint("Service", i)}
+		godif.ProvideSliceElement(&Services, s)
+	}
+
+	// Resolve all
+
+	errs := godif.ResolveAll()
+	defer godif.Reset()
+	assert.Nil(t, errs)
+
+	var err error
+	ctx := context.Background()
+	ctx, err = Start(ctx)
+	require.Nil(t, err)
+	defer Stop(ctx)
+
+	Stop(ctx)
+
 }
 
 // MyService for testing purposes

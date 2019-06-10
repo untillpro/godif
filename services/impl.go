@@ -36,7 +36,7 @@ func implStart(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
-func implStop(ctx context.Context) {
+func implStopAsyncObsoleted(ctx context.Context) {
 	log.Println("[services] Stopping...")
 	var wg sync.WaitGroup
 	for _, service := range started {
@@ -48,6 +48,16 @@ func implStop(ctx context.Context) {
 		}()
 	}
 	wg.Wait()
+	started = []isvc.IService{}
+	log.Println("[services] All services stopped")
+}
+
+func implStopSync(ctx context.Context) {
+	log.Println("[services] Stopping...")
+	for i := len(started) - 1; i >= 0; i-- {
+		s := started[i]
+		s.Stop(ctx)
+	}
 	started = []isvc.IService{}
 	log.Println("[services] All services stopped")
 }
