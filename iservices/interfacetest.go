@@ -28,7 +28,7 @@ func TestImpl(t *testing.T, declare func()) {
 	declareImplementation = declare
 	t.Run("testBasicUsage", testBasicUsage)
 	t.Run("testFailedStart", testFailedStart)
-	t.Run("testStopOrder", testStopOrder)
+	t.Run("testStopOrder", testStartStopOrder)
 }
 
 func testBasicUsage(t *testing.T) {
@@ -115,7 +115,7 @@ func testFailedStart(t *testing.T) {
 	assert.Equal(t, 0, s2.State)
 }
 
-func testStopOrder(t *testing.T) {
+func testStartStopOrder(t *testing.T) {
 	godif.Require(&Start)
 	godif.Require(&Stop)
 
@@ -125,8 +125,13 @@ func testStopOrder(t *testing.T) {
 
 	// Provide own services
 
+	var services []*MyService
+
+	runningServices = 0
+
 	for i := 0; i < 100; i++ {
 		s := &MyService{Name: fmt.Sprint("Service", i)}
+		services = append(services, s)
 		godif.ProvideSliceElement(&Services, s)
 	}
 
@@ -139,20 +144,30 @@ func testStopOrder(t *testing.T) {
 	var err error
 	ctx := context.Background()
 	ctx, err = Start(ctx)
-	require.Nil(t, err)
 	defer Stop(ctx)
+	require.Nil(t, err)
+
+	for i, s := range services {
+		assert.Equal(t, i, s.runningServiceNumber)
+	}
 
 	Stop(ctx)
+	for _, s := range services {
+		assert.Equal(t, 0, s.runningServiceNumber)
+	}
 
 }
 
+var runningServices = 0
+
 // MyService for testing purposes
 type MyService struct {
-	Name      string
-	State     int // 0 (stopped), 1 (started)
-	Failstart bool
-	CtxValue  interface{}
-	Wg        *sync.WaitGroup
+	Name                 string
+	State                int // 0 (stopped), 1 (started)
+	Failstart            bool
+	CtxValue             interface{}
+	Wg                   *sync.WaitGroup
+	runningServiceNumber int // assgined from runningServices
 }
 
 type ctxKeyType string
@@ -164,6 +179,8 @@ func (s *MyService) Start(ctx context.Context) (context.Context, error) {
 		return ctx, errors.New(s.Name + ":" + "Start fails")
 	}
 	s.State++
+	s.runningServiceNumber = runningServices
+	runningServices++
 	fmt.Println(s.Name, "Started")
 	ctx = context.WithValue(ctx, ctxKeyType(s.Name), true)
 	if nil != s.Wg {
@@ -176,6 +193,8 @@ func (s *MyService) Start(ctx context.Context) (context.Context, error) {
 // Stop s.e.
 func (s *MyService) Stop(ctx context.Context) {
 	s.State--
+	runningServices--
+	s.runningServiceNumber -= runningServices
 	fmt.Println(s.Name, "Stopped")
 }
 

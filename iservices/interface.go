@@ -7,7 +7,7 @@
 
 package iservices
 
-import(
+import (
 	"context"
 )
 
@@ -18,5 +18,5 @@ var Services []IService
 // If any error occurs it is immediately returned
 var Start func(ctx context.Context) (context.Context, error)
 
-// Stop asyncronously calls all Stop methods
+// Stop calls all Stop methods of started services in reversed order of provision
 var Stop func(ctx context.Context)
