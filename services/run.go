@@ -55,3 +55,10 @@ func Run() error {
 func Terminate() {
 	signals <- os.Interrupt
 }
+
+// DeclareRequire declares services and requires iservices. Used in Run, also can be useful for testing
+func DeclareRequire() {
+	Declare()
+	godif.Require(&iservices.Start)
+	godif.Require(&iservices.Stop)
+}
