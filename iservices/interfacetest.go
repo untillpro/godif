@@ -23,6 +23,40 @@ import (
 var declareImplementation func()
 var lastCtx context.Context
 
+// StartInTest starts services in test
+func StartInTest(t *testing.T, declareServices, declareTest, declareService func()) (context.Context, error) {
+
+	// Require iservices interface
+
+	godif.Require(&Start)
+	godif.Require(&Stop)
+
+	// Provide iservices interface
+	declareServices()
+
+	// Declare test requirements
+	declareTest()
+
+	// Declare own service
+	declareService()
+
+	errs := godif.ResolveAll()
+	if nil != errs {
+		return nil, errs
+	}
+
+	return Start(context.Background())
+
+}
+
+// StopInTest finits StartInTest
+func StopInTest(ctx context.Context, t *testing.T) {
+	if nil != Stop{
+		Stop(ctx)
+	}
+	godif.Reset()
+}
+
 // TestImpl s.e.
 func TestImpl(t *testing.T, declare func()) {
 	declareImplementation = declare
