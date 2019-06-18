@@ -14,7 +14,6 @@ import (
 	"os/signal"
 
 	"github.com/untillpro/godif"
-	"github.com/untillpro/godif/iservices"
 )
 
 var signals chan os.Signal
@@ -23,8 +22,6 @@ var signals chan os.Signal
 // When Terminate() is called ctx is cancelled and all Stop's are called asynchronously
 // # Events
 func Run() error {
-
-	DeclareRequire()
 
 	errs := godif.ResolveAll()
 	defer godif.Reset()
@@ -36,10 +33,10 @@ func Run() error {
 
 	signals = make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
-	defer iservices.Stop(ctx)
+	defer StopServices(ctx)
 
 	var err error
-	ctx, err = iservices.Start(ctx)
+	ctx, err = StartServices(ctx)
 	if nil != err {
 		cancel()
 		return err
@@ -54,11 +51,4 @@ func Run() error {
 // Terminate running Run
 func Terminate() {
 	signals <- os.Interrupt
-}
-
-// DeclareRequire declares services and requires iservices. Used in Run, also can be useful for testing
-func DeclareRequire() {
-	Declare()
-	godif.Require(&iservices.Start)
-	godif.Require(&iservices.Stop)
 }

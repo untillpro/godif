@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-package iservices
+package services
 
 import "context"
 
@@ -17,6 +17,9 @@ type IService interface {
 	// Called only if Start() succeeds
 	Stop(ctx context.Context)
 }
+
+// IServices slice os IServices
+//type IServices []IService
 
 // Event describe events
 type Event string

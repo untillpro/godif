@@ -13,20 +13,22 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/untillpro/godif"
-	"github.com/untillpro/godif/iservices"
 )
 
 func Test_BasicUsage(t *testing.T) {
+
+	// Cleanup services
+	Services = []IService{}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	// Declare two services
 
-	s1 := &iservices.MyService{Name: "Service1", Wg: &wg}
-	s2 := &iservices.MyService{Name: "Service2", Wg: &wg}
-	godif.ProvideSliceElement(&iservices.Services, s1)
-	godif.ProvideSliceElement(&iservices.Services, s2)
+	s1 := &MyService{Name: "Service1", Wg: &wg}
+	s2 := &MyService{Name: "Service2", Wg: &wg}
+	godif.ProvideSliceElement(&Services, s1)
+	godif.ProvideSliceElement(&Services, s2)
 
 	// Terminate when all services started
 
@@ -42,10 +44,14 @@ func Test_BasicUsage(t *testing.T) {
 }
 
 func Test_FailedStart(t *testing.T) {
-	s1 := &iservices.MyService{Name: "Service1"}
-	s2 := &iservices.MyService{Name: "Service2", Failstart: true}
-	godif.ProvideSliceElement(&iservices.Services, s1)
-	godif.ProvideSliceElement(&iservices.Services, s2)
+
+	// Cleanup services
+	Services = []IService{}
+
+	s1 := &MyService{Name: "Service1"}
+	s2 := &MyService{Name: "Service2", Failstart: true}
+	godif.ProvideSliceElement(&Services, s1)
+	godif.ProvideSliceElement(&Services, s2)
 	err := Run()
 	require.NotNil(t, err, err)
 	require.Equal(t, 0, s1.State)

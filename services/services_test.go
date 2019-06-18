@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-package iservices
+package services
 
 import (
 	"context"
@@ -20,44 +20,22 @@ import (
 	"github.com/untillpro/godif"
 )
 
-var declareImplementation func()
 var lastCtx context.Context
 
-// TestImpl s.e.
-func TestImpl(t *testing.T, declare func()) {
-	declareImplementation = declare
-	t.Run("testBasicUsage", testBasicUsage)
-	t.Run("testFailedStart", testFailedStart)
-	t.Run("testStopOrder", testStartStopOrder)
-}
+func TestBasicUsage(t *testing.T) {
 
-func testBasicUsage(t *testing.T) {
-	godif.Require(&Start)
-	godif.Require(&Stop)
-
-	// Declare passed implementation
-
-	declareImplementation()
-
-	// Provide own services
+	// Cleanup services
+	Services = []IService{}
 
 	s1 := &MyService{Name: "Service1"}
 	s2 := &MyService{Name: "Service2"}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
-	// Resolve all
+	// Resolve and start services
 
-	errs := godif.ResolveAll()
-	defer godif.Reset()
-	require.Nil(t, errs, errs)
-
-	// Start services
-
-	var err error
-	ctx := context.Background()
-	ctx, err = Start(ctx)
-	defer Stop(ctx)
+	ctx, err := ResolveAndStart()
+	defer StopAndReset(ctx)
 	require.Nil(t, err)
 
 	// Check service state
@@ -71,21 +49,16 @@ func testBasicUsage(t *testing.T) {
 	assert.True(t, lastCtx.Value(ctxKeyType("Service2")).(bool))
 	assert.Nil(t, lastCtx.Value(ctxKeyType("Service3")))
 
-	// Stop services
-	Stop(ctx)
+	// StopServices services
+	StopServices(ctx)
 	assert.Equal(t, 0, s1.State)
 	assert.Equal(t, 0, s2.State)
 }
 
-func testFailedStart(t *testing.T) {
-	godif.Require(&Start)
-	godif.Require(&Stop)
+func TestFailedStart(t *testing.T) {
 
-	// Declare passed implementation
-
-	declareImplementation()
-
-	// Provide own services
+	// Cleanup services
+	Services = []IService{}
 
 	s1 := &MyService{Name: "Service1"}
 	s2 := &MyService{Name: "Service2", Failstart: true}
@@ -104,8 +77,8 @@ func testFailedStart(t *testing.T) {
 	var err error
 	fmt.Println("### Before Start")
 	ctx := context.Background()
-	ctx, err = Start(ctx)
-	defer Stop(ctx)
+	ctx, err = StartServices(ctx)
+	defer StopServices(ctx)
 	fmt.Println("### After Start")
 	assert.NotNil(t, err)
 	fmt.Println("err=", err)
@@ -115,15 +88,10 @@ func testFailedStart(t *testing.T) {
 	assert.Equal(t, 0, s2.State)
 }
 
-func testStartStopOrder(t *testing.T) {
-	godif.Require(&Start)
-	godif.Require(&Stop)
+func TestStartStopOrder(t *testing.T) {
 
-	// Declare passed implementation
-
-	declareImplementation()
-
-	// Provide own services
+	// Cleanup services
+	Services = []IService{}
 
 	var services []*MyService
 
@@ -135,23 +103,17 @@ func testStartStopOrder(t *testing.T) {
 		godif.ProvideSliceElement(&Services, s)
 	}
 
-	// Resolve all
+	// Resolve and start services
 
-	errs := godif.ResolveAll()
-	defer godif.Reset()
-	assert.Nil(t, errs)
-
-	var err error
-	ctx := context.Background()
-	ctx, err = Start(ctx)
-	defer Stop(ctx)
+	ctx, err := ResolveAndStart()
+	defer StopAndReset(ctx)
 	require.Nil(t, err)
 
 	for i, s := range services {
 		assert.Equal(t, i, s.runningServiceNumber)
 	}
 
-	Stop(ctx)
+	StopServices(ctx)
 	for _, s := range services {
 		assert.Equal(t, 0, s.runningServiceNumber)
 	}

@@ -11,17 +11,20 @@ import (
 	"context"
 	"log"
 	"reflect"
-	"sync"
-
-	isvc "github.com/untillpro/godif/iservices"
 )
 
-var started = []isvc.IService{}
+// Services should be provided by godif.ProvideSliceElement(&services.Services, ...)
+var Services = []IService{}
 
-func implStart(ctx context.Context) (context.Context, error) {
+var started []IService
+
+// StartServices starts all services
+// Calls Services' Start methods in order of provision
+// If any error occurs it is immediately returned
+func StartServices(ctx context.Context) (context.Context, error) {
 
 	log.Println("[services] Starting services...")
-	for _, service := range isvc.Services {
+	for _, service := range Services {
 		var err error
 		serviceName := reflect.TypeOf(service).String()
 		log.Println("[services] Starting " + serviceName + "...")
@@ -36,28 +39,13 @@ func implStart(ctx context.Context) (context.Context, error) {
 	return ctx, nil
 }
 
-func implStopAsyncObsoleted(ctx context.Context) {
-	log.Println("[services] Stopping...")
-	var wg sync.WaitGroup
-	for _, service := range started {
-		s := service
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			s.Stop(ctx)
-		}()
-	}
-	wg.Wait()
-	started = []isvc.IService{}
-	log.Println("[services] All services stopped")
-}
-
-func implStopSync(ctx context.Context) {
+// StopServices calls all Stop methods of started services in reversed order of provision
+func StopServices(ctx context.Context) {
 	log.Println("[services] Stopping...")
 	for i := len(started) - 1; i >= 0; i-- {
 		s := started[i]
 		s.Stop(ctx)
 	}
-	started = []isvc.IService{}
+	started = []IService{}
 	log.Println("[services] All services stopped")
 }
