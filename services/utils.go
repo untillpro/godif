@@ -7,23 +7,16 @@
 
 package services
 
-import (
-	"context"
+import "log"
 
-	"github.com/untillpro/godif"
-)
+var loggingEnabled = true
 
-// ResolveAndStart resolve deps and starts services
-func ResolveAndStart() (context.Context, error) {
-	err := godif.ResolveAll()
-	if nil != err {
-		return context.Background(), err
+func logln(args ...interface{}) {
+	if !loggingEnabled {
+		return
 	}
-	return StartServices(context.Background())
-}
+	pargs := []interface{}{"[services]"}
+	pargs = append(pargs, args...)
 
-// StopAndReset stops services and resets deps
-func StopAndReset(ctx context.Context) {
-	StopServices(ctx)
-	godif.Reset()
+	log.Println(pargs...)
 }
