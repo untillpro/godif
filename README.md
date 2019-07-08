@@ -1,5 +1,8 @@
 # godif
 
+![godif](docs/godif.svg)
+
+
 Go dependency injection for functions (and not only...)
 
 # Usage Example

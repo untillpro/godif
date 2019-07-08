@@ -1,6 +1,0 @@
-package services
-
-func main(){
-	
-}
-
