@@ -24,10 +24,6 @@ var lastCtx context.Context
 
 func TestBasicUsage(t *testing.T) {
 
-	// Cleanup services
-	Services = []IService{}
-
-
 	// Register services
 
 	s1 := &MyService{Name: "Service1"}
@@ -60,13 +56,11 @@ func TestBasicUsage(t *testing.T) {
 
 func TestFailedStart(t *testing.T) {
 
-	// Cleanup services
-	Services = []IService{}
-
 	s1 := &MyService{Name: "Service1"}
 	s2 := &MyService{Name: "Service2", Failstart: true}
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
+	Declare()
 
 	// Resolve all
 
@@ -93,12 +87,12 @@ func TestFailedStart(t *testing.T) {
 
 func TestStartStopOrder(t *testing.T) {
 
-	// Cleanup services
-	Services = []IService{}
-
 	var services []*MyService
 
 	runningServices = 0
+
+	prevVerbose := SetVerbose(false)
+	defer SetVerbose(prevVerbose)
 
 	for i := 0; i < 100; i++ {
 		s := &MyService{Name: fmt.Sprint("Service", i)}
@@ -146,7 +140,6 @@ func (s *MyService) Start(ctx context.Context) (context.Context, error) {
 	s.State++
 	s.runningServiceNumber = runningServices
 	runningServices++
-	fmt.Println(s.Name, "Started")
 	ctx = context.WithValue(ctx, ctxKeyType(s.Name), true)
 	if nil != s.Wg {
 		s.Wg.Done()
@@ -160,7 +153,6 @@ func (s *MyService) Stop(ctx context.Context) {
 	s.State--
 	runningServices--
 	s.runningServiceNumber -= runningServices
-	fmt.Println(s.Name, "Stopped")
 }
 
 func (s *MyService) String() string {
@@ -168,9 +160,6 @@ func (s *MyService) String() string {
 }
 
 func Test_BasicUsage(t *testing.T) {
-
-	// Cleanup services
-	Services = []IService{}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -196,9 +185,6 @@ func Test_BasicUsage(t *testing.T) {
 }
 
 func Test_FailedStart(t *testing.T) {
-
-	// Cleanup services
-	Services = []IService{}
 
 	s1 := &MyService{Name: "Service1"}
 	s2 := &MyService{Name: "Service2", Failstart: true}

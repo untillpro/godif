@@ -9,10 +9,10 @@ package services
 
 import "log"
 
-var loggingEnabled = true
+var verboseEnabled = true
 
 func logln(args ...interface{}) {
-	if !loggingEnabled {
+	if !verboseEnabled {
 		return
 	}
 	pargs := []interface{}{"[services]"}
