@@ -1,4 +1,4 @@
-# godif
+# Go Different
 
 ![godif](docs/godif2.svg)
 
