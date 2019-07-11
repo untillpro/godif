@@ -1,6 +1,6 @@
 # godif
 
-![godif](docs/godif.svg)
+![godif](docs/godif2.svg)
 
 
 Go dependency injection for functions (and not only...)
