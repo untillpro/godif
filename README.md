@@ -1,4 +1,4 @@
-# Go Different
+# Go Dependency Injection Framework
 
 ![godif](docs/godif2.png)
 
