@@ -11,8 +11,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"reflect"
-
 	"github.com/untillpro/godif"
 )
 
@@ -31,22 +29,9 @@ func SetVerbose(value bool) (prev bool) {
 // StartServices starts all services
 // Calls Services' Start methods in order of provision
 // If any error occurs it is immediately returned
-func StartServices(ctx context.Context) (context.Context, error) {
-
-	logln("Starting services...")
-	for _, service := range Services {
-		var err error
-		serviceName := reflect.TypeOf(service).String()
-		logln("Starting " + serviceName + "...")
-		ctx, err = service.Start(ctx)
-		if nil != err {
-			logln("Error starting service:", err)
-			return ctx, err
-		}
-		started = append(started, service)
-	}
-	logln("All services started")
-	return ctx, nil
+func StartServices(ctx context.Context) (newCtx context.Context, err error) {
+	newCtx, started, err = Start(ctx, Services)
+	return newCtx, err
 }
 
 // StopServices calls all Stop methods of started services in reversed order of provision

@@ -44,8 +44,8 @@ func TestBasicUsage(t *testing.T) {
 
 	//Make sure that value provided by service exist in ctx
 
-	assert.True(t, lastCtx.Value(ctxKeyType("Service1")).(bool))
-	assert.True(t, lastCtx.Value(ctxKeyType("Service2")).(bool))
+	assert.Equal(t, 0, lastCtx.Value(ctxKeyType("Service1")).(int))
+	assert.Equal(t, 1000, lastCtx.Value(ctxKeyType("Service2")).(int))
 	assert.Nil(t, lastCtx.Value(ctxKeyType("Service3")))
 
 	// StopServices services
@@ -83,6 +83,34 @@ func TestFailedStart(t *testing.T) {
 	assert.False(t, strings.Contains(err.Error(), "Service1"))
 	assert.Equal(t, 1, s1.State)
 	assert.Equal(t, 0, s2.State)
+}
+
+func TestContextStartStopOrder(t *testing.T) {
+
+	ctxKey := ctxKeyType("root")
+	initialCtx := context.WithValue(context.Background(), ctxKey, "rootValue")
+
+	prevVerbose := SetVerbose(false)
+	defer SetVerbose(prevVerbose)
+
+	var services []IService
+	for i := 0; i < 100; i++ {
+		s := MyService{Name: fmt.Sprint("Service", i)}
+		services = append(services, &s)
+	}
+	finalCtx, startedServices, err := Start(initialCtx, services)
+	defer Stop(finalCtx, startedServices)
+
+	require.Equal(t, len(services), len(startedServices))
+	require.Nil(t, err)
+
+	// Check that initial context is kept
+	require.Equal(t, "rootValue", finalCtx.Value(ctxKeyType("root")))
+
+	// Check that services contexts are kept
+	for idx := range startedServices {
+		require.Equal(t, idx*1000, finalCtx.Value(ctxKeyType(fmt.Sprint("Service", idx))))
+	}
 }
 
 func TestStartStopOrder(t *testing.T) {
@@ -140,7 +168,7 @@ func (s *MyService) Start(ctx context.Context) (context.Context, error) {
 	s.State++
 	s.runningServiceNumber = runningServices
 	runningServices++
-	ctx = context.WithValue(ctx, ctxKeyType(s.Name), true)
+	ctx = context.WithValue(ctx, ctxKeyType(s.Name), s.runningServiceNumber*1000)
 	if nil != s.Wg {
 		s.Wg.Done()
 	}
