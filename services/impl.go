@@ -80,6 +80,7 @@ func Declare() {
 // newCtx: new context
 // started: services which were succedsfully started
 // err: error reported by service
+// If service panics EPanic is returned as err
 func Start(startingCtx context.Context, servicesToStart []IService) (newCtx context.Context, startedServices []IService, err error) {
 	logln("Starting services...")
 	newCtx = startingCtx
@@ -105,6 +106,7 @@ func Start(startingCtx context.Context, servicesToStart []IService) (newCtx cont
 }
 
 // Stop all services in given context
+// Services must NOT panic
 func Stop(ctx context.Context, startedServices []IService) {
 	logln("Stopping...")
 	for i := len(startedServices) - 1; i >= 0; i-- {
