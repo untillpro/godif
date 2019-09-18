@@ -11,10 +11,10 @@ import "fmt"
 
 // EPanic is returned by Start/Stop if some service paniced
 type EPanic struct {
-	service   IService
-	panicData interface{}
+	PanicedService IService
+	PanicData      interface{}
 }
 
 func (e *EPanic) Error() string {
-	return fmt.Sprintf("Service %v paniced: %v", e.service, e.panicData)
+	return fmt.Sprintf("Service %v paniced: %v", e.PanicedService, e.PanicData)
 }

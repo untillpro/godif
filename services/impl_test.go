@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"testing"
@@ -81,6 +82,33 @@ func TestBasicUsage2(t *testing.T) {
 	StopServices(ctx)
 	assert.Equal(t, 0, s1.State)
 	assert.Equal(t, 0, s2.State)
+}
+
+func TestRunFailedStart(t *testing.T) {
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	s1 := &MyService{Name: "Service1", Wg: &wg}
+	s2 := &MyService{Name: "Service2", Failstart: true, Wg: &wg}
+	s3 := &MyService{Name: "Service3"}
+	godif.ProvideSliceElement(&Services, s1)
+	godif.ProvideSliceElement(&Services, s2)
+	godif.ProvideSliceElement(&Services, s3)
+
+	go func() {
+		wg.Wait()
+		Terminate()
+	}()
+
+	err := Run()
+	assert.NotNil(t, err, err)
+	assert.Equal(t, 0, s1.State)
+	assert.Equal(t, true, s1.StartInvoked)
+	assert.Equal(t, 0, s2.State)
+	assert.Equal(t, true, s2.StartInvoked)
+	assert.Equal(t, 0, s3.State)
+	assert.Equal(t, false, s3.StartInvoked)
 }
 
 func TestFailedStart(t *testing.T) {
@@ -174,25 +202,48 @@ func TestStartStopOrder(t *testing.T) {
 
 }
 
-var runningServices = 0
+func TestPanicedStart(t *testing.T) {
 
-// MyService for testing purposes
-type MyService struct {
-	Name                 string
-	State                int // 0 (stopped), 1 (started)
-	Failstart            bool
-	CtxValue             interface{}
-	Wg                   *sync.WaitGroup
-	runningServiceNumber int // assgined from runningServices
+	prevVerbose := SetVerbose(true)
+	defer SetVerbose(prevVerbose)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	s1 := &MyService{Name: "Service1", Wg: &wg}
+	s2 := &MyService{Name: "Service2", PanicData: "somethingwrong", Wg: &wg}
+	s3 := &MyService{Name: "Service3"}
+	godif.ProvideSliceElement(&Services, s1)
+	godif.ProvideSliceElement(&Services, s2)
+	godif.ProvideSliceElement(&Services, s3)
+	go func() {
+		wg.Wait()
+		Terminate()
+	}()
+	err := Run()
+	assert.NotNil(t, err, err)
+	p, ok := err.(*EPanic)
+	log.Println("Panic: ", p)
+	assert.True(t, ok, "err is not EPanic", err)
+	assert.Equal(t, "somethingwrong", p.PanicData)
+	assert.Equal(t, "Service2", p.PanicedService.(*MyService).Name)
+	assert.Equal(t, 0, s1.State)
+	assert.Equal(t, true, s1.StartInvoked)
+	assert.Equal(t, 0, s2.State)
+	assert.Equal(t, true, s2.StartInvoked)
+	assert.Equal(t, 0, s3.State)
+	assert.Equal(t, false, s3.StartInvoked)
 }
-
-type ctxKeyType string
 
 // Start s.e.
 func (s *MyService) Start(ctx context.Context) (context.Context, error) {
+	s.StartInvoked = true
 	if s.Failstart {
 		fmt.Println(s.Name, "Start fails")
 		return ctx, errors.New(s.Name + ":" + "Start fails")
+	}
+	if s.PanicData != nil {
+		panic(s.PanicData)
 	}
 	s.State++
 	s.runningServiceNumber = runningServices
@@ -216,18 +267,6 @@ func (s *MyService) String() string {
 	return "I'm service " + s.Name
 }
 
-func Test_FailedStart(t *testing.T) {
-
-	s1 := &MyService{Name: "Service1"}
-	s2 := &MyService{Name: "Service2", Failstart: true}
-	godif.ProvideSliceElement(&Services, s1)
-	godif.ProvideSliceElement(&Services, s2)
-	err := Run()
-	require.NotNil(t, err, err)
-	require.Equal(t, 0, s1.State)
-	require.Equal(t, 0, s2.State)
-}
-
 var Missed func()
 
 func Test_FailedResolve(t *testing.T) {
@@ -235,3 +274,19 @@ func Test_FailedResolve(t *testing.T) {
 	err := Run()
 	require.NotNil(t, err, err)
 }
+
+var runningServices = 0
+
+// MyService for testing purposes
+type MyService struct {
+	Name                 string
+	State                int // 0 (stopped), 1 (started)
+	Failstart            bool
+	PanicData            interface{}
+	CtxValue             interface{}
+	Wg                   *sync.WaitGroup
+	runningServiceNumber int // assgined from runningServices
+	StartInvoked         bool
+}
+
+type ctxKeyType string
