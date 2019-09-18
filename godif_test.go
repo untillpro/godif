@@ -131,8 +131,8 @@ func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
 
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(t, file, e.req.file)
-		assert.Equal(t, line+1, e.req.line)
+		assert.Equal(t, file, e.target.file)
+		assert.Equal(t, line+1, e.target.line)
 	} else {
 		t.Fatal(errs)
 	}
@@ -170,8 +170,8 @@ func TestErrorOnIncompatibleTypes(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypesFunc); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(t, reqFile, e.req.file)
-		assert.Equal(t, reqLine+1, e.req.line)
+		assert.Equal(t, reqFile, e.target.file)
+		assert.Equal(t, reqLine+1, e.target.line)
 		assert.Equal(t, implFile, e.prov.file)
 		assert.Equal(t, implLine+1, e.prov.line)
 	} else {
@@ -331,7 +331,7 @@ func TestProvideExtensionMapErrorOnIncompatibleTypesKey(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypesStorageKey); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(reflect.TypeOf(bucketDefsPtr).Elem(), e.reqType)
+		assert.Equal(reflect.TypeOf(bucketDefsPtr), e.targetType)
 		assert.Equal(provFile, e.prov.file)
 		assert.Equal(provLine+1, e.prov.line)
 	} else {
@@ -361,7 +361,7 @@ func TestProvideExtensionMapErrorOnIncompatibleTypesValue(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypesStorageValue); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(reflect.TypeOf(bucketDefsPtr).Elem(), e.reqType)
+		assert.Equal(reflect.TypeOf(bucketDefsPtr), e.targetType)
 		assert.Equal(provFile, e.prov.file)
 		assert.Equal(provLine+1, e.prov.line)
 	} else {
@@ -385,7 +385,7 @@ func TestProvideExtensionMapErrorOnIncompatibleTypesProvide(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypesStorageImpl); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(reflect.TypeOf(bucketDefsPtr), e.reqType)
+		assert.Equal(reflect.TypeOf(bucketDefsPtr), e.targetType)
 		assert.Equal(provFile, e.prov.file)
 		assert.Equal(provLine+1, e.prov.line)
 	} else {
@@ -437,7 +437,7 @@ func TestProvideExtensionMapErrorOnAppendSliceIncompatibleTypes(t *testing.T) {
 
 	if e, ok := errs[0].(*EIncompatibleTypesStorageValue); ok && len(errs) == 1 {
 		fmt.Println(e)
-		assert.Equal(t, reflect.TypeOf(bucketDefsPtr), e.reqType)
+		assert.Equal(t, reflect.TypeOf(bucketDefsPtr), e.targetType)
 		assert.Equal(t, provFile, e.prov.file)
 		assert.Equal(t, provLine+1, e.prov.line)
 	} else {
@@ -527,7 +527,7 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 	assert.NotNil(initedSlice)
 }
 
-func TestProvideExtensionSliceErrorOnNoProvided(t *testing.T) {
+func TestProvideExtensionSliceErrorOnNotProvided(t *testing.T) {
 	Reset()
 	var mySlice []string
 
@@ -565,7 +565,7 @@ func TestProvideExtensionSliceErrorOnIncompatibleTypesSliceElement(t *testing.T)
 	errs := ResolveAll()
 	if e, ok := errs[0].(*EIncompatibleTypesStorageValue); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(t, reflect.TypeOf(mySlice), e.reqType)
+		assert.Equal(t, reflect.TypeOf(mySlice), e.targetType)
 		assert.Equal(t, provLine+1, e.prov.line)
 		assert.Equal(t, provFile, e.prov.file)
 	} else {
@@ -583,7 +583,7 @@ func TestProvideExtensionSliceErrorOnIncompatibleTypesProvide(t *testing.T) {
 	errs := ResolveAll()
 	if e, ok := errs[0].(*EIncompatibleTypesStorageImpl); ok && len(errs) == 1 {
 		fmt.Println(errs)
-		assert.Equal(t, reflect.TypeOf(mySlice), e.reqType)
+		assert.Equal(t, reflect.TypeOf(mySlice), e.targetType)
 		assert.Equal(t, provLine+1, e.prov.line)
 		assert.Equal(t, provFile, e.prov.file)
 	} else {

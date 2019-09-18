@@ -30,8 +30,7 @@ type EMultipleFuncImplementations struct {
 
 // EImplementationNotProvided error occurs if there is no implementation provided for a type
 type EImplementationNotProvided struct {
-	req    *srcElem
-	target interface{}
+	target *srcElem
 }
 
 // EImplementationProvidedForNonNil error occurs if target value is not nil but implementation provided
@@ -41,31 +40,31 @@ type EImplementationProvidedForNonNil struct {
 
 // ENonAssignableRequirement error occurs if non-assignable (e.g. not variable) requirement is declared
 type ENonAssignableRequirement struct {
-	req *srcElem
+	target *srcElem
 }
 
 // EIncompatibleTypesFunc error occurs if type of a requirement (func) is incompatible to provided implementation
 type EIncompatibleTypesFunc struct {
-	req  *srcElem
-	prov *srcPkgElem
+	target *srcElem
+	prov   *srcPkgElem
 }
 
 // EIncompatibleTypesStorageValue error occurs if type of an array or slice element or value of map is incompatible to provided implementation
 type EIncompatibleTypesStorageValue struct {
-	reqType reflect.Type
-	prov    *srcElem
+	targetType reflect.Type
+	prov       *srcElem
 }
 
 // EIncompatibleTypesStorageKey error occurs if type of key map is incompatible to provided implementation
 type EIncompatibleTypesStorageKey struct {
-	reqType reflect.Type
-	prov    *srcElem
+	targetType reflect.Type
+	prov       *srcElem
 }
 
 // EIncompatibleTypesStorageImpl error occurs if type of array or slice or map is incompatible to provided implementation
 type EIncompatibleTypesStorageImpl struct {
-	reqType reflect.Type
-	prov    *srcElem
+	targetType reflect.Type
+	prov       *srcElem
 }
 
 // EPackageNotUsed s.e.
@@ -102,10 +101,11 @@ func (e *EMultipleFuncImplementations) Error() string {
 }
 
 func (e *EImplementationNotProvided) Error() string {
-	if e.target == nil {
-		return fmt.Sprintf("Implementation of %T at %s:%d is not provided", e.req.elem, e.req.file, e.req.line)
+	kind := reflect.TypeOf(e.target.elem).Elem().Kind()
+	if kind == reflect.Func {
+		return fmt.Sprintf("Implementation of %T at %s:%d is not provided", e.target.elem, e.target.file, e.target.line)
 	}
-	return fmt.Sprintf("Target %T is nil at %s:%d. Init it manually or use Provide()", e.target, e.req.file, e.req.line)
+	return fmt.Sprintf("Target %T is nil at %s:%d. Init it manually or use Provide()", e.target.elem, e.target.file, e.target.line)
 }
 
 func (e *EImplementationProvidedForNonNil) Error() string {
@@ -113,26 +113,26 @@ func (e *EImplementationProvidedForNonNil) Error() string {
 }
 
 func (e *ENonAssignableRequirement) Error() string {
-	return fmt.Sprintf("Non-assignable requirement at %s:%d. Use pointers to target on Require() and Provide()", e.req.file, e.req.line)
+	return fmt.Sprintf("Non-assignable requirement at %s:%d. Use pointers to target on Require() and Provide()", e.target.file, e.target.line)
 }
 
 func (e *EIncompatibleTypesStorageValue) Error() string {
-	return fmt.Sprintf("Incompatible types: %s required but %s used as value at %s:%d", e.reqType,
+	return fmt.Sprintf("Incompatible types: target is %s but %s is used as value at %s:%d", e.targetType,
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 
 func (e *EIncompatibleTypesStorageKey) Error() string {
-	return fmt.Sprintf("Incompatible types: %s required but %s used as key at %s:%d", e.reqType,
+	return fmt.Sprintf("Incompatible types: target is %s but %s is used as key at %s:%d", e.targetType,
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 
 func (e *EIncompatibleTypesStorageImpl) Error() string {
-	return fmt.Sprintf("Incompatible types: %s required but %s provided at %s:%d", e.reqType,
+	return fmt.Sprintf("Incompatible types: target is %s but %s is provided at %s:%d", e.targetType,
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 
 func (e *EIncompatibleTypesFunc) Error() string {
-	return fmt.Sprintf("Incompatible types: %s required at %s:%d, %s provided at %s:%d", reflect.TypeOf(e.req.elem), e.req.file, e.req.line,
+	return fmt.Sprintf("Incompatible types: %s required at %s:%d, %s provided at %s:%d", reflect.TypeOf(e.target.elem), e.target.file, e.target.line,
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 

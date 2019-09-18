@@ -197,7 +197,7 @@ func getErrors() Errors {
 		impls := provided[req.elem]
 
 		if nil == impls {
-			errs = append(errs, &EImplementationNotProvided{req, nil})
+			errs = append(errs, &EImplementationNotProvided{req})
 		}
 
 		if len(impls) > 1 {
@@ -228,7 +228,8 @@ func getErrors() Errors {
 		if targetMapValue.IsNil() {
 			if impl == nil {
 				keys := reflect.ValueOf(kvToAppend).MapKeys()
-				errs = append(errs, &EImplementationNotProvided{kvToAppend[keys[0].Interface()][0], targetMap})
+				se := newSrcElem(kvToAppend[keys[0].Interface()][0].file, kvToAppend[keys[0].Interface()][0].line, targetMap)
+				errs = append(errs, &EImplementationNotProvided{se})
 				continue
 			}
 		} else {
@@ -274,7 +275,8 @@ func getErrors() Errors {
 		targetSliceValue := reflect.ValueOf(targetSlice).Elem()
 		impl := provided[targetSlice]
 		if targetSliceValue.IsNil() && impl == nil {
-			errs = append(errs, &EImplementationNotProvided{elementsToAppend[0], targetSlice})
+			se := newSrcElem(elementsToAppend[0].file, elementsToAppend[0].line, targetSlice)
+			errs = append(errs, &EImplementationNotProvided{se})
 			continue
 		}
 		for _, v := range elementsToAppend {
