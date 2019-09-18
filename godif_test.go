@@ -8,10 +8,10 @@
 package godif
 
 import (
-	"strings"
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -210,7 +210,7 @@ func TestPackageNotUsedIfNothingRequired(t *testing.T) {
 	errs := ResolveAll()
 
 	pc, _, _, _ := runtime.Caller(0)
-	nameFull := runtime.FuncForPC(pc).Name() 
+	nameFull := runtime.FuncForPC(pc).Name()
 	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
 	if e, ok := errs[0].(*EPackageNotUsed); ok && len(errs) == 1 {
 		fmt.Println(errs)
@@ -329,7 +329,7 @@ func TestProvideExtensionMapErrorOnIncompatibleTypesKey(t *testing.T) {
 	errs := ResolveAll()
 	assert.Nil(bucketDefsPtr)
 
-	if e, ok := errs[0].(*EIncompatibleTypesStorage); ok && len(errs) == 1 {
+	if e, ok := errs[0].(*EIncompatibleTypesStorageKey); ok && len(errs) == 1 {
 		fmt.Println(errs)
 		assert.Equal(reflect.TypeOf(bucketDefsPtr).Elem(), e.reqType)
 		assert.Equal(provFile, e.prov.file)
@@ -359,7 +359,7 @@ func TestProvideExtensionMapErrorOnIncompatibleTypesValue(t *testing.T) {
 	errs := ResolveAll()
 	assert.Nil(bucketDefsPtr)
 
-	if e, ok := errs[0].(*EIncompatibleTypesStorage); ok && len(errs) == 1 {
+	if e, ok := errs[0].(*EIncompatibleTypesStorageValue); ok && len(errs) == 1 {
 		fmt.Println(errs)
 		assert.Equal(reflect.TypeOf(bucketDefsPtr).Elem(), e.reqType)
 		assert.Equal(provFile, e.prov.file)
@@ -383,7 +383,7 @@ func TestProvideExtensionMapErrorOnIncompatibleTypesProvide(t *testing.T) {
 
 	errs := ResolveAll()
 
-	if e, ok := errs[0].(*EIncompatibleTypesStorage); ok && len(errs) == 1 {
+	if e, ok := errs[0].(*EIncompatibleTypesStorageImpl); ok && len(errs) == 1 {
 		fmt.Println(errs)
 		assert.Equal(reflect.TypeOf(bucketDefsPtr), e.reqType)
 		assert.Equal(provFile, e.prov.file)
@@ -435,7 +435,7 @@ func TestProvideExtensionMapErrorOnAppendSliceIncompatibleTypes(t *testing.T) {
 	errs := ResolveAll()
 	assert.Nil(t, bucketDefsPtr)
 
-	if e, ok := errs[0].(*EIncompatibleTypesStorage); ok && len(errs) == 1 {
+	if e, ok := errs[0].(*EIncompatibleTypesStorageValue); ok && len(errs) == 1 {
 		fmt.Println(e)
 		assert.Equal(t, reflect.TypeOf(bucketDefsPtr), e.reqType)
 		assert.Equal(t, provFile, e.prov.file)
@@ -527,7 +527,7 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 	assert.NotNil(initedSlice)
 }
 
-func TestProvideExtensionSliceErrorOnNoProvide(t *testing.T) {
+func TestProvideExtensionSliceErrorOnNoProvided(t *testing.T) {
 	Reset()
 	var mySlice []string
 
@@ -563,7 +563,7 @@ func TestProvideExtensionSliceErrorOnIncompatibleTypesSliceElement(t *testing.T)
 	_, provFile, provLine, _ := runtime.Caller(0)
 	ProvideSliceElement(&mySlice, 1)
 	errs := ResolveAll()
-	if e, ok := errs[0].(*EIncompatibleTypesStorage); ok && len(errs) == 1 {
+	if e, ok := errs[0].(*EIncompatibleTypesStorageValue); ok && len(errs) == 1 {
 		fmt.Println(errs)
 		assert.Equal(t, reflect.TypeOf(mySlice), e.reqType)
 		assert.Equal(t, provLine+1, e.prov.line)
@@ -581,7 +581,7 @@ func TestProvideExtensionSliceErrorOnIncompatibleTypesProvide(t *testing.T) {
 	Provide(&mySlice, make([]int, 0))
 
 	errs := ResolveAll()
-	if e, ok := errs[0].(*EIncompatibleTypesStorage); ok && len(errs) == 1 {
+	if e, ok := errs[0].(*EIncompatibleTypesStorageImpl); ok && len(errs) == 1 {
 		fmt.Println(errs)
 		assert.Equal(t, reflect.TypeOf(mySlice), e.reqType)
 		assert.Equal(t, provLine+1, e.prov.line)
