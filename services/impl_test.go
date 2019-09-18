@@ -24,6 +24,35 @@ var lastCtx context.Context
 
 func TestBasicUsage(t *testing.T) {
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Using Run()
+
+	// Declare two services
+
+	s1 := &MyService{Name: "Service1", Wg: &wg}
+	s2 := &MyService{Name: "Service2", Wg: &wg}
+	godif.ProvideSliceElement(&Services, s1)
+	godif.ProvideSliceElement(&Services, s2)
+
+	// Terminate after all services started
+
+	go func() {
+		wg.Wait()
+		Terminate()
+	}()
+
+	// Run waits for Terminate() or SIGTERM
+	err := Run()
+	require.Nil(t, err, err)
+
+}
+
+func TestBasicUsage2(t *testing.T) {
+
+	// Using ResolveAndStart/StopAndReset
+
 	// Register services
 
 	s1 := &MyService{Name: "Service1"}
@@ -185,31 +214,6 @@ func (s *MyService) Stop(ctx context.Context) {
 
 func (s *MyService) String() string {
 	return "I'm service " + s.Name
-}
-
-func Test_BasicUsage(t *testing.T) {
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Declare two services
-
-	s1 := &MyService{Name: "Service1", Wg: &wg}
-	s2 := &MyService{Name: "Service2", Wg: &wg}
-	godif.ProvideSliceElement(&Services, s1)
-	godif.ProvideSliceElement(&Services, s2)
-
-	// Terminate when all services started
-
-	go func() {
-		wg.Wait()
-		Terminate()
-	}()
-
-	// Run waits for Terminate() or SIGTERM
-	err := Run()
-	require.Nil(t, err, err)
-
 }
 
 func Test_FailedStart(t *testing.T) {
