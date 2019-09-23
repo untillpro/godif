@@ -30,7 +30,8 @@ type EMultipleFuncImplementations struct {
 
 // EImplementationNotProvided error occurs if there is no implementation provided for a type
 type EImplementationNotProvided struct {
-	req *srcElem
+	req    *srcElem
+	target interface{}
 }
 
 // EImplementationProvidedForNonNil error occurs if target value is not nil but implementation provided
@@ -49,8 +50,20 @@ type EIncompatibleTypesFunc struct {
 	prov *srcPkgElem
 }
 
-// EIncompatibleTypesStorage error occurs if type of an array or slice element or key or value of map is incompatible to provided implementation
-type EIncompatibleTypesStorage struct {
+// EIncompatibleTypesStorageValue error occurs if type of an array or slice element or value of map is incompatible to provided implementation
+type EIncompatibleTypesStorageValue struct {
+	reqType reflect.Type
+	prov    *srcElem
+}
+
+// EIncompatibleTypesStorageKey error occurs if type of key map is incompatible to provided implementation
+type EIncompatibleTypesStorageKey struct {
+	reqType reflect.Type
+	prov    *srcElem
+}
+
+// EIncompatibleTypesStorageImpl error occurs if type of array or slice or map is incompatible to provided implementation
+type EIncompatibleTypesStorageImpl struct {
 	reqType reflect.Type
 	prov    *srcElem
 }
@@ -69,7 +82,6 @@ type EMultipleValues struct {
 type EAlreadyResolved struct {
 	resolvePlace *src
 }
-
 
 func (e *EMultipleStorageImplementations) Error() string {
 	var buffer bytes.Buffer
@@ -90,7 +102,10 @@ func (e *EMultipleFuncImplementations) Error() string {
 }
 
 func (e *EImplementationNotProvided) Error() string {
-	return fmt.Sprintf("Requirement %T at %s:%d is not provided", e.req.elem, e.req.file, e.req.line)
+	if e.target == nil {
+		return fmt.Sprintf("Implementation of %T at %s:%d is not provided", e.req.elem, e.req.file, e.req.line)
+	}
+	return fmt.Sprintf("Target %T is nil at %s:%d. Init it manually or use Provide()", e.target, e.req.file, e.req.line)
 }
 
 func (e *EImplementationProvidedForNonNil) Error() string {
@@ -98,11 +113,21 @@ func (e *EImplementationProvidedForNonNil) Error() string {
 }
 
 func (e *ENonAssignableRequirement) Error() string {
-	return fmt.Sprintf("Non-assignable requirement at %s:%d", e.req.file, e.req.line)
+	return fmt.Sprintf("Non-assignable requirement at %s:%d. Use pointers to target on Require() and Provide()", e.req.file, e.req.line)
 }
 
-func (e *EIncompatibleTypesStorage) Error() string {
-	return fmt.Sprintf("Incompatible types: %s required but %s used at %s:%d", e.reqType,
+func (e *EIncompatibleTypesStorageValue) Error() string {
+	return fmt.Sprintf("Incompatible types: target is %s but %s used as value at %s:%d", e.reqType,
+		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
+}
+
+func (e *EIncompatibleTypesStorageKey) Error() string {
+	return fmt.Sprintf("Incompatible types: target is %s but %s used as key at %s:%d", e.reqType,
+		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
+}
+
+func (e *EIncompatibleTypesStorageImpl) Error() string {
+	return fmt.Sprintf("Incompatible types: target is %s but %s provided at %s:%d", e.reqType,
 		reflect.TypeOf(e.prov.elem), e.prov.file, e.prov.line)
 }
 
@@ -132,7 +157,7 @@ func (e Errors) Error() string {
 	if len(e) == 1 {
 		return e[0].Error()
 	}
-	
+
 	var sb strings.Builder
 	sb.WriteString("Multiple errors:")
 	for _, err := range e {
