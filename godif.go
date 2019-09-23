@@ -98,7 +98,7 @@ func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{
 // Provide registers implementation of ref type
 func Provide(ref interface{}, funcImplementation interface{}) {
 	pc, file, line, _ := runtime.Caller(1)
-	nameFull := runtime.FuncForPC(pc).Name() 
+	nameFull := runtime.FuncForPC(pc).Name()
 	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
 	provided[ref] = append(provided[ref], newSrcPkgElem(file, line, pkgName, funcImplementation))
 }
@@ -191,18 +191,18 @@ func getErrors() Errors {
 	}
 
 	requiredPackages := make(map[string]bool)
-	
+
 	for _, req := range required {
 
 		impls := provided[req.elem]
 
 		if nil == impls {
-			errs = append(errs, &EImplementationNotProvided{req})
+			errs = append(errs, &EImplementationNotProvided{req, nil})
 		}
 
 		if len(impls) > 1 {
 			errs = append(errs, &EMultipleFuncImplementations{req, impls})
-		} 
+		}
 
 		v := reflect.ValueOf(req.elem).Elem()
 		if !v.CanSet() {
@@ -228,7 +228,7 @@ func getErrors() Errors {
 		if targetMapValue.IsNil() {
 			if impl == nil {
 				keys := reflect.ValueOf(kvToAppend).MapKeys()
-				errs = append(errs, &EImplementationNotProvided{kvToAppend[keys[0].Interface()][0]})
+				errs = append(errs, &EImplementationNotProvided{kvToAppend[keys[0].Interface()][0], targetMap})
 				continue
 			}
 		} else {
@@ -249,7 +249,7 @@ func getErrors() Errors {
 						provType = provType.Elem()
 					}
 					if !provType.AssignableTo(reqMapValueSliceElementType) {
-						errs = append(errs, &EIncompatibleTypesStorage{targetMapType, provElement})
+						errs = append(errs, &EIncompatibleTypesStorageValue{targetMapType, provElement})
 					}
 				}
 			} else {
@@ -258,11 +258,11 @@ func getErrors() Errors {
 				} else {
 					vType := reflect.TypeOf(v[0].elem)
 					if !vType.AssignableTo(targetMapValueType) {
-						errs = append(errs, &EIncompatibleTypesStorage{targetMapValueType, v[0]})
+						errs = append(errs, &EIncompatibleTypesStorageValue{targetMapType, v[0]})
 					}
 					kType := reflect.TypeOf(k)
 					if !kType.AssignableTo(targetMapKeyType) {
-						errs = append(errs, &EIncompatibleTypesStorage{targetMapValueType, v[0]})
+						errs = append(errs, &EIncompatibleTypesStorageKey{targetMapType, newSrcElem(v[0].file, v[0].line, k)})
 					}
 				}
 			}
@@ -274,7 +274,7 @@ func getErrors() Errors {
 		targetSliceValue := reflect.ValueOf(targetSlice).Elem()
 		impl := provided[targetSlice]
 		if targetSliceValue.IsNil() && impl == nil {
-			errs = append(errs, &EImplementationNotProvided{elementsToAppend[0]})
+			errs = append(errs, &EImplementationNotProvided{elementsToAppend[0], targetSlice})
 			continue
 		}
 		for _, v := range elementsToAppend {
@@ -284,7 +284,7 @@ func getErrors() Errors {
 				vType = vType.Elem()
 			}
 			if !vType.AssignableTo(targetSliceType.Elem()) {
-				errs = append(errs, &EIncompatibleTypesStorage{targetSliceType, v})
+				errs = append(errs, &EIncompatibleTypesStorageValue{targetSliceType, v})
 			}
 		}
 	}
@@ -300,7 +300,7 @@ func getErrors() Errors {
 		provType := reflect.TypeOf(provSrcs[0].elem)
 		targetType := reflect.TypeOf(provVar).Elem()
 		targetKind := targetType.Kind()
-		
+
 		switch targetKind {
 		case reflect.Func:
 			if _, required := requiredPackages[provSrcs[0].pkg]; !required {
@@ -317,7 +317,7 @@ func getErrors() Errors {
 				}
 			}
 			if !provType.AssignableTo(targetType) {
-				errs = append(errs, &EIncompatibleTypesStorage{targetType, provSrcs[0].srcElem})
+				errs = append(errs, &EIncompatibleTypesStorageImpl{targetType, provSrcs[0].srcElem})
 			}
 		}
 	}
