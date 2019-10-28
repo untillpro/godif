@@ -25,10 +25,22 @@ var lastCtx context.Context
 
 func TestBasicUsage(t *testing.T) {
 
+	/*
+		Using Run()
+
+		- Provide few services using `godif`
+		- Invoke Run()
+
+		Note that
+
+		- Run waits till either Terminate() invoked somewhere or SIGTERM received
+
+	*/
+
+	// For testing purposes
+
 	var wg sync.WaitGroup
 	wg.Add(2)
-
-	// Using Run()
 
 	// Declare two services
 
@@ -37,22 +49,32 @@ func TestBasicUsage(t *testing.T) {
 	godif.ProvideSliceElement(&Services, s1)
 	godif.ProvideSliceElement(&Services, s2)
 
-	// Terminate after all services started
+	// Call Terminate() when all services started
 
 	go func() {
 		wg.Wait()
 		Terminate()
 	}()
 
-	// Run waits for Terminate() or SIGTERM
+	// Run starts all services and waits for Terminate() or SIGTERM
 	err := Run()
 	require.Nil(t, err, err)
 
+	// No started services
+	assert.Equal(t, 0, len(started))
+
 }
 
-func TestBasicUsage2(t *testing.T) {
+func TestUsageResolveAndStart(t *testing.T) {
 
-	// Using ResolveAndStart/StopAndReset
+	/*
+		Using ResolveAndStart/StopAndReset
+
+		- Provide few services using `godif`
+		- Invoke ResolveAndStart()
+		- Finally invoke StopAndReset()
+
+	*/
 
 	// Register services
 
@@ -64,6 +86,7 @@ func TestBasicUsage2(t *testing.T) {
 	// Resolve and start services
 
 	ctx, err := ResolveAndStart()
+	// StopAndReset can be invokes many times
 	defer StopAndReset(ctx)
 	require.Nil(t, err)
 
@@ -78,10 +101,32 @@ func TestBasicUsage2(t *testing.T) {
 	assert.Equal(t, 1000, lastCtx.Value(ctxKeyType("Service2")).(int))
 	assert.Nil(t, lastCtx.Value(ctxKeyType("Service3")))
 
-	// StopServices services
-	StopServices(ctx)
+	// Stop services and reset godif
+	StopAndReset(ctx)
 	assert.Equal(t, 0, s1.State)
 	assert.Equal(t, 0, s2.State)
+}
+
+func TestUsageVerbose(t *testing.T) {
+
+	/*
+		Using SetVerbose
+
+		- By default Services are started/stopped using verbose output using log.Println
+		- SetVerbose(false) changes this behavour
+
+	*/
+	oldVerbose := SetVerbose(false)
+	defer SetVerbose(oldVerbose)
+
+	s1 := &MyService{Name: "Service1"}
+	s2 := &MyService{Name: "Service2"}
+	godif.ProvideSliceElement(&Services, s1)
+	godif.ProvideSliceElement(&Services, s2)
+
+	ctx, _ := ResolveAndStart()
+	defer StopAndReset(ctx)
+
 }
 
 func TestRunFailedStart(t *testing.T) {
@@ -147,16 +192,13 @@ func TestContextStartStopOrder(t *testing.T) {
 	ctxKey := ctxKeyType("root")
 	initialCtx := context.WithValue(context.Background(), ctxKey, "rootValue")
 
-	prevVerbose := SetVerbose(false)
-	defer SetVerbose(prevVerbose)
-
 	var services []IService
 	for i := 0; i < 100; i++ {
 		s := MyService{Name: fmt.Sprint("Service", i)}
 		services = append(services, &s)
 	}
-	finalCtx, startedServices, err := Start(initialCtx, services)
-	defer Stop(finalCtx, startedServices)
+	finalCtx, startedServices, err := Start(initialCtx, services, false)
+	defer Stop(finalCtx, startedServices, false)
 
 	require.Equal(t, len(services), len(startedServices))
 	require.Nil(t, err)

@@ -23,8 +23,8 @@ var Services []IService
 
 // SetVerbose changes logging defaults (by default verbose is true)
 func SetVerbose(value bool) (prev bool) {
-	prev = verboseEnabled
-	verboseEnabled = value
+	prev = verboseOutput
+	verboseOutput = value
 	return
 }
 
@@ -51,23 +51,18 @@ func Run() error {
 	return nil
 }
 
-// StartServices starts all services
+// StartServices starts all services registered in Services
 // Calls Services' Start methods in order of provision
-// If any error occurs it is immediately returned
+// If any error/panic occurs it immediately returns
 func StartServices(ctx context.Context) (newCtx context.Context, err error) {
-	newCtx, started, err = Start(ctx, Services)
+	newCtx, started, err = Start(ctx, Services, verboseOutput)
 	return newCtx, err
 }
 
 // StopServices calls all Stop methods of started services in reversed order of provision
 func StopServices(ctx context.Context) {
-	logln("Stopping...")
-	for i := len(started) - 1; i >= 0; i-- {
-		s := started[i]
-		s.Stop(ctx)
-	}
+	Stop(ctx, started, verboseOutput)
 	started = []IService{}
-	logln("All services stopped")
 }
 
 // Declare s.e.
@@ -81,19 +76,25 @@ func Declare() {
 // started: services which were succedsfully started
 // err: error reported by service
 // If service panics EPanic is returned as err
-func Start(startingCtx context.Context, servicesToStart []IService) (newCtx context.Context, startedServices []IService, err error) {
-	logln("Starting services...")
+func Start(startingCtx context.Context, servicesToStart []IService, verbose bool) (newCtx context.Context, startedServices []IService, err error) {
+	if verbose {
+		logln("Starting services...")
+	}
 	newCtx = startingCtx
 	var startingService IService
 	defer func() {
 		if r := recover(); r != nil {
-			logln(fmt.Sprintf("Service paniced: %v: %v", startingService, r))
+			if verbose {
+				logln(fmt.Sprintf("Service paniced: %v: %v", startingService, r))
+			}
 			err = &EPanic{PanicData: r, PanicedService: startingService}
 		}
 	}()
 	for _, startingService = range servicesToStart {
 		serviceName := reflect.TypeOf(startingService).String()
-		logln("Starting " + serviceName + "...")
+		if verbose {
+			logln("Starting " + serviceName + "...")
+		}
 		newCtx, err = startingService.Start(newCtx)
 		if nil != err {
 			logln("Error starting service:", err)
@@ -101,21 +102,29 @@ func Start(startingCtx context.Context, servicesToStart []IService) (newCtx cont
 		}
 		startedServices = append(startedServices, startingService)
 	}
-	logln("All services started")
+	if verbose {
+		logln("All services started")
+	}
 	return
 }
 
 // Stop all services in given context
 // Services must NOT panic
-func Stop(ctx context.Context, startedServices []IService) {
-	logln("Stopping...")
+func Stop(ctx context.Context, startedServices []IService, verbose bool) {
+	if verbose {
+		logln("Stopping...")
+	}
 	for i := len(startedServices) - 1; i >= 0; i-- {
 		service := startedServices[i]
 		serviceName := reflect.TypeOf(service).String()
-		logln("Stopping " + serviceName + "...")
+		if verbose {
+			logln("Stopping " + serviceName + "...")
+		}
 		service.Stop(ctx)
 	}
-	logln("All services stopped")
+	if verbose {
+		logln("All services stopped")
+	}
 }
 
 // Terminate running Run
@@ -131,6 +140,7 @@ func ResolveAndStart() (context.Context, error) {
 // ResolveAndStartCtx declares own provisions, resolve deps and starts services with given context
 func ResolveAndStartCtx(ctx context.Context) (context.Context, error) {
 	Declare()
+	logln("Resolving dependencies...")
 	err := godif.ResolveAll()
 	if nil != err {
 		return ctx, err
@@ -145,7 +155,7 @@ func StopAndReset(ctx context.Context) {
 }
 
 func logln(args ...interface{}) {
-	if !verboseEnabled {
+	if !verboseOutput {
 		return
 	}
 	pargs := []interface{}{"[services]"}
@@ -154,6 +164,6 @@ func logln(args ...interface{}) {
 	log.Println(pargs...)
 }
 
-var verboseEnabled = true
+var verboseOutput = true
 var started []IService
 var signals chan os.Signal
