@@ -11,11 +11,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"strings"
 )
-
-// Errors is multiple errors container
-type Errors []error
 
 // EMultipleStorageImplementations occurs if there are more than one implementations provided for slice or map
 type EMultipleStorageImplementations struct {
@@ -151,17 +147,4 @@ func (e *EMultipleValues) Error() string {
 
 func (e *EAlreadyResolved) Error() string {
 	return fmt.Sprintf("Already resolved at %s:%d", e.resolvePlace.file, e.resolvePlace.line)
-}
-
-func (e Errors) Error() string {
-	if len(e) == 1 {
-		return e[0].Error()
-	}
-
-	var sb strings.Builder
-	sb.WriteString("Multiple errors:")
-	for _, err := range e {
-		sb.WriteString("\n" + err.Error())
-	}
-	return sb.String()
 }

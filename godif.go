@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/untillpro/gochips/errs"
 )
 
 type src struct {
@@ -110,7 +112,7 @@ func Require(toInject interface{}) {
 }
 
 // ResolveAll all deps
-func ResolveAll() Errors {
+func ResolveAll() errs.Errors {
 	errs := getErrors()
 	if len(errs) > 0 {
 		return errs
@@ -184,10 +186,10 @@ func isSlice(kind reflect.Kind) bool {
 	return kind == reflect.Array || kind == reflect.Slice
 }
 
-func getErrors() Errors {
-	var errs Errors
+func getErrors() errs.Errors {
+	var errs errs.Errors
 	if resolveSrc != nil {
-		return []error{&EAlreadyResolved{resolveSrc}}
+		return errs.AddE(&EAlreadyResolved{resolveSrc})
 	}
 
 	requiredPackages := make(map[string]bool)
