@@ -85,7 +85,7 @@ func Start(startingCtx context.Context, servicesToStart []IService, verbose bool
 	defer func() {
 		if r := recover(); r != nil {
 			if verbose {
-				logln(fmt.Sprintf("Service paniced: %v: %v", startingService, r))
+				logln(fmt.Sprintf("Service paniced: %v: %v", reflect.TypeOf(startingService), r))
 			}
 			err = &EPanic{PanicData: r, PanicedService: startingService}
 		}
