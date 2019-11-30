@@ -111,7 +111,7 @@ func Require(toInject interface{}) {
 
 // ResolveAll all deps
 func ResolveAll() Errors {
-	errs := getErrors()
+	errs := validate()
 	if len(errs) > 0 {
 		return errs
 	}
@@ -184,7 +184,7 @@ func isSlice(kind reflect.Kind) bool {
 	return kind == reflect.Array || kind == reflect.Slice
 }
 
-func getErrors() Errors {
+func validate() Errors {
 	var errs Errors
 	if resolveSrc != nil {
 		return []error{&EAlreadyResolved{resolveSrc}}
