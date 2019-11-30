@@ -748,7 +748,7 @@ func TestErrorOnResoveTwice(t *testing.T) {
 	}
 }
 
-type TMyType int
+type TMyType uint16
 
 func TestReturnCustomType(t *testing.T) {
 	Reset()
