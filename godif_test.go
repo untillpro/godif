@@ -120,13 +120,36 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 	}
 }
 
-func TestErrorOnNonAssignableRequirementNonPointer(t *testing.T) {
+func TestErrorOnNonAssignableProvision(t *testing.T) {
 	Reset()
-	var injectedFunc *func(x int, y int) int
+	// target var non-ptr, required non-ptr
+	var injectedFunc func(x int, y int) int
+
+	Require(&injectedFunc)
+	_, file, line, _ := runtime.Caller(0)
+	Provide(injectedFunc, f)
+	errs := ResolveAll()
+
+	if e, ok := errs[0].(*EProvisionForNonAssignable); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, file, e.provisionPlace.file)
+		assert.Equal(t, line+1, e.provisionPlace.line)
+	} else {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, injectedFunc)
+
+	Reset()
+}
+
+func TestErrorOnNonAssignableRequirement(t *testing.T) {
+	Reset()
+	
+	var injectedFunc func(x int, y int) int
 
 	_, file, line, _ := runtime.Caller(0)
 	Require(injectedFunc)
-	Provide(injectedFunc, f)
+	Provide(&injectedFunc, f)
 	errs := ResolveAll()
 
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok && len(errs) == 1 {

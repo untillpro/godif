@@ -35,6 +35,7 @@ var provided map[interface{}][]*srcPkgElem
 var keyValues map[interface{}]map[interface{}][]*srcElem
 var sliceElements map[interface{}][]*srcElem
 var resolveSrc *src
+var unhashableProvs []*src
 
 func init() {
 	createVars()
@@ -76,6 +77,7 @@ func Reset() {
 	}
 	required = make([]*srcElem, 0)
 	resolveSrc = nil
+	unhashableProvs = []*src{}
 	createVars()
 }
 
@@ -102,7 +104,12 @@ func Provide(ref interface{}, funcImplementation interface{}) {
 	pc, file, line, _ := runtime.Caller(1)
 	nameFull := runtime.FuncForPC(pc).Name()
 	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
-	provided[ref] = append(provided[ref], newSrcPkgElem(file, line, pkgName, funcImplementation))
+	srcElem := newSrcPkgElem(file, line, pkgName, funcImplementation)
+	if isHashable(ref) {
+		provided[ref] = append(provided[ref], srcElem)
+	} else {
+		unhashableProvs = append(unhashableProvs, srcElem.src)
+	}
 }
 
 // Require registers dep
@@ -113,14 +120,12 @@ func Require(toInject interface{}) {
 
 // ResolveAll all deps
 func ResolveAll() errs.Errors {
-	errs := getErrors()
-	if len(errs) > 0 {
+	if errs := getErrors(); errs != nil {
 		return errs
 	}
 
 	for target, provVar := range provided {
-		targetValue := reflect.ValueOf(target).Elem()
-		if targetValue.IsNil() {
+		if targetValue := reflect.ValueOf(target).Elem(); targetValue.IsNil() {
 			targetValue.Set(reflect.ValueOf(provVar[0].elem))
 		}
 	}
@@ -186,6 +191,11 @@ func isSlice(kind reflect.Kind) bool {
 	return kind == reflect.Array || kind == reflect.Slice
 }
 
+func isHashable(intf interface{}) bool {
+	t := reflect.TypeOf(intf).Kind()
+	return t < reflect.Array || t == reflect.Ptr || t == reflect.UnsafePointer
+}
+
 func getErrors() errs.Errors {
 	var errs errs.Errors
 	if resolveSrc != nil {
@@ -194,7 +204,23 @@ func getErrors() errs.Errors {
 
 	requiredPackages := make(map[string]bool)
 
+	if len(unhashableProvs) > 0 {
+		for _, unhashableProvsSrc := range unhashableProvs {
+			errs = errs.AddE(&EProvisionForNonAssignable{unhashableProvsSrc})
+		}
+		return errs
+	}
+
 	for _, req := range required {
+
+		v := reflect.ValueOf(req.elem)
+
+		if v.Kind() != reflect.Ptr || !v.Elem().CanSet() {
+			errs = append(errs, &ENonAssignableRequirement{req})
+			if !v.CanSet() {
+				return errs // req.elem is unhashable here
+			}
+		}
 
 		impls := provided[req.elem]
 
@@ -204,11 +230,6 @@ func getErrors() errs.Errors {
 
 		if len(impls) > 1 {
 			errs = append(errs, &EMultipleFuncImplementations{req, impls})
-		}
-
-		v := reflect.ValueOf(req.elem).Elem()
-		if !v.CanSet() {
-			errs = append(errs, &ENonAssignableRequirement{req})
 		}
 
 		reqType := reflect.TypeOf(req.elem).Elem()

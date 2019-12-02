@@ -35,7 +35,7 @@ type EImplementationProvidedForNonNil struct {
 	prov *srcPkgElem
 }
 
-// ENonAssignableRequirement error occurs if non-assignable (e.g. not variable) requirement is declared
+// ENonAssignableRequirement error occurs if non-assignable (e.g. not variable or non-ptr) requirement is declared
 type ENonAssignableRequirement struct {
 	req *srcElem
 }
@@ -77,6 +77,11 @@ type EMultipleValues struct {
 // EAlreadyResolved occurs on ResolveAll() call if it called already
 type EAlreadyResolved struct {
 	resolvePlace *src
+}
+
+// EProvisionForNonAssignable occurs if unassgnable var is provided on Provide() call (e.g. var of func type instead of ptr to var of func type)
+type EProvisionForNonAssignable struct {
+	provisionPlace *src
 }
 
 func (e *EMultipleStorageImplementations) Error() string {
@@ -147,4 +152,8 @@ func (e *EMultipleValues) Error() string {
 
 func (e *EAlreadyResolved) Error() string {
 	return fmt.Sprintf("Already resolved at %s:%d", e.resolvePlace.file, e.resolvePlace.line)
+}
+
+func (e *EProvisionForNonAssignable) Error() string {
+	return fmt.Sprintf("Non-assignable var is provided on Provide() at %s:%d", e.provisionPlace.file, e.provisionPlace.line)
 }
