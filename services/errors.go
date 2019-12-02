@@ -7,7 +7,10 @@
 
 package services
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 // EPanic is returned by Start/Stop if some service paniced
 type EPanic struct {
@@ -16,5 +19,5 @@ type EPanic struct {
 }
 
 func (e *EPanic) Error() string {
-	return fmt.Sprintf("Service %v paniced: %v", e.PanicedService, e.PanicData)
+	return fmt.Sprintf("Service %v paniced: %v", reflect.TypeOf(e.PanicedService), e.PanicData)
 }

@@ -8,6 +8,7 @@
 package godif
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -771,6 +772,21 @@ func TestErrorOnResoveTwice(t *testing.T) {
 	}
 }
 
+type TMyType uint16
+
+func TestReturnCustomType(t *testing.T) {
+	Reset()
+	var injectedFunc func(ctx context.Context) TMyType
+	Require(&injectedFunc)
+	errs := ResolveAll()
+	assert.True(t, len(errs) > 0)
+	Reset()
+	Require(&injectedFunc)
+	Provide(&injectedFunc, f4)
+	errs = ResolveAll()
+	assert.True(t, len(errs) == 0, errs)
+}
+
 func f(x int, y int) int {
 	return x + y
 }
@@ -781,4 +797,8 @@ func f2(x float32) float32 {
 
 func f3(x int, y int) int {
 	return x * y
+}
+
+func f4(ctx context.Context) TMyType {
+	return TMyType(10)
 }

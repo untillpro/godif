@@ -120,7 +120,7 @@ func Require(toInject interface{}) {
 
 // ResolveAll all deps
 func ResolveAll() errs.Errors {
-	if errs := getErrors(); errs != nil {
+	if errs := validate(); errs != nil {
 		return errs
 	}
 
@@ -196,7 +196,7 @@ func isHashable(intf interface{}) bool {
 	return t < reflect.Array || t == reflect.Ptr || t == reflect.UnsafePointer
 }
 
-func getErrors() errs.Errors {
+func validate() errs.Errors {
 	var errs errs.Errors
 	if resolveSrc != nil {
 		return errs.AddE(&EAlreadyResolved{resolveSrc})
