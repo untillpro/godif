@@ -4,8 +4,7 @@ Go dependency injection for functions (and not only...)
 
 # Usage Example
 
--  [Interface declaration](iservices/README.md)
--  [Interface implementation](services/declare.go)
+-  [Service implementation](services/impl_test.go)
 
 # Usage
 
@@ -19,6 +18,7 @@ Go dependency injection for functions (and not only...)
   - More than one implementations provided -> error
   - No implementation -> error
   - Something provided from a package but nothing is required for the package -> error (package is not used)
+  - Non-assignable var provided on `Require()` or `Provide()` call -> error, further validation is skipped
 
 
 ## Provide key-value
@@ -37,6 +37,7 @@ Go dependency injection for functions (and not only...)
     - Non-map or map of incompatible key or value type -> error
   - Multiple values per key -> error
   - Key or value of different types provided -> error
+  - Non-assignable var provided or `ProvideKeyValue()` call -> error, further validation is skipped
 
 
 ## Provide key-slice
@@ -58,11 +59,13 @@ Go dependency injection for functions (and not only...)
   - If implementation provided
     - Multiple implementations -> error
     - Slice of incompatible element type -> error
+  - Non-assignable var provided on `ProvideKeyValue()` call -> error, further validation is skipped
 
 
 ## Provide slice element
 
 - Declare: `var MySlice []string`
+- Require skipped, no error
 - Implement
   - Manually: `MySlice = []string{}`
   - Provide implementation: `godif.Provide(&MySlice, []string{})`
@@ -72,10 +75,11 @@ Go dependency injection for functions (and not only...)
   - `godif.ProvideSliceElement(&MySlice, "str1")`
   - `godif.ProvideSliceElement(&MySlice, []string{"str3", "str4"})`
 - Resolve: `godif.ResolveAll()`
-  - Dtata provided but not implemented -> error
+  - Data provided but not implemented -> error
   - Use `godif.Provide()` if implemented manually -> error 
   - Multiple implementations -> error
   - Incompatible types -> error
+  - Non-assignable var provided on `ProvideSliceElement()` call -> error, further validation is skipped
 
 ## Reset all injections
 - `godif.Reset()`

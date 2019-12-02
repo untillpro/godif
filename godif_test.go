@@ -121,9 +121,8 @@ func TestMultipleErrorsOnResolve(t *testing.T) {
 	}
 }
 
-func TestErrorOnNonAssignableProvision(t *testing.T) {
+func TestErrorOnNonAssignableVarOnProvideFunc(t *testing.T) {
 	Reset()
-	// target var non-ptr, required non-ptr
 	var injectedFunc func(x int, y int) int
 
 	Require(&injectedFunc)
@@ -140,17 +139,72 @@ func TestErrorOnNonAssignableProvision(t *testing.T) {
 	}
 	assert.Nil(t, injectedFunc)
 
+}
+func TestErrorOnNonAssignableVarOnProvideMap(t *testing.T) {
 	Reset()
+
+	var bucketDefs map[string]string
+	Require(&bucketDefs)
+	_, file, line, _ := runtime.Caller(0)
+	Provide(bucketDefs, map[string]string{})
+	errs := ResolveAll()
+
+	if e, ok := errs[0].(*EProvisionForNonAssignable); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, file, e.provisionPlace.file)
+		assert.Equal(t, line+1, e.provisionPlace.line)
+	} else {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, bucketDefs)
 }
 
-func TestErrorOnNonAssignableRequirement(t *testing.T) {
+func TestErrorOnNonAssignableVarOnProvideKeyValue(t *testing.T) {
 	Reset()
-	
+
+	var intMap map[string][]int
+
+	_, file, line, _ := runtime.Caller(0)
+	ProvideKeyValue(intMap, "str", 1)
+
+	errs := ResolveAll()
+	if e, ok := errs[0].(*EProvisionForNonAssignable); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, file, e.provisionPlace.file)
+		assert.Equal(t, line+1, e.provisionPlace.line)
+	} else {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, intMap)
+}
+
+func TestErrorOnNonAssignableVarOnProvideSliceElement(t *testing.T) {
+	Reset()
+
+	var mySlice []string
+	Provide(&mySlice, make([]string, 0))
+
+	_, file, line, _ := runtime.Caller(0)
+	ProvideSliceElement(mySlice, "str1")
+	errs := ResolveAll()
+	if e, ok := errs[0].(*EProvisionForNonAssignable); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, file, e.provisionPlace.file)
+		assert.Equal(t, line+1, e.provisionPlace.line)
+	} else {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, mySlice)
+
+}
+
+func TestErrorOnNonAssignableRequirementFunc(t *testing.T) {
+	Reset()
+
 	var injectedFunc func(x int, y int) int
 
 	_, file, line, _ := runtime.Caller(0)
 	Require(injectedFunc)
-	Provide(&injectedFunc, f)
 	errs := ResolveAll()
 
 	if e, ok := errs[0].(*ENonAssignableRequirement); ok && len(errs) == 1 {
@@ -161,6 +215,25 @@ func TestErrorOnNonAssignableRequirement(t *testing.T) {
 		t.Fatal(errs)
 	}
 	assert.Nil(t, injectedFunc)
+}
+
+func TestErrorOnNonAssignableRequirementNonFunc(t *testing.T) {
+	Reset()
+
+	var bucketDefs map[string]string
+
+	_, file, line, _ := runtime.Caller(0)
+	Require(bucketDefs)
+	errs := ResolveAll()
+
+	if e, ok := errs[0].(*ENonAssignableRequirement); ok && len(errs) == 1 {
+		fmt.Println(errs)
+		assert.Equal(t, file, e.req.file)
+		assert.Equal(t, line+1, e.req.line)
+	} else {
+		t.Fatal(errs)
+	}
+	assert.Nil(t, bucketDefs)
 }
 
 func TestMatchReqAndImplByPointer(t *testing.T) {
@@ -181,7 +254,7 @@ func TestMatchReqAndImplByPointer(t *testing.T) {
 	assert.Equal(t, 5, injected2(2, 3))
 }
 
-func TestErrorOnIncompatibleTypes(t *testing.T) {
+func TestErrorOnIncompatibleTypesFunc(t *testing.T) {
 	Reset()
 	var injected func(x int, y int) int
 

@@ -84,19 +84,29 @@ func Reset() {
 // ProvideSliceElement s.e.
 func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	if sliceElements[pointerToSlice] == nil {
-		sliceElements[pointerToSlice] = make([]*srcElem, 0)
+	srcElement := newSrcElem(file, line, element)
+	if isHashable(pointerToSlice) {
+		if sliceElements[pointerToSlice] == nil {
+			sliceElements[pointerToSlice] = make([]*srcElem, 0)
+		}
+		sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], srcElement)
+	} else {
+		unhashableProvs = append(unhashableProvs, srcElement.src)
 	}
-	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], newSrcElem(file, line, element))
 }
 
 // ProvideKeyValue s.e.
 func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	if keyValues[pointerToMap] == nil {
-		keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
+	srcElement := newSrcElem(file, line, value)
+	if isHashable(pointerToMap) {
+		if keyValues[pointerToMap] == nil {
+			keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
+		}
+		keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], srcElement)
+	} else {
+		unhashableProvs = append(unhashableProvs, srcElement.src)
 	}
-	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], newSrcElem(file, line, value))
 }
 
 // Provide registers implementation of ref type
@@ -196,8 +206,7 @@ func isHashable(intf interface{}) bool {
 	return t < reflect.Array || t == reflect.Ptr || t == reflect.UnsafePointer
 }
 
-func validate() errs.Errors {
-	var errs errs.Errors
+func validate() (errs errs.Errors) {
 	if resolveSrc != nil {
 		return errs.AddE(&EAlreadyResolved{resolveSrc})
 	}
