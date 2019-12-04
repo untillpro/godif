@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/untillpro/gochips/errs"
 )
 
 type src struct {
@@ -33,6 +35,7 @@ var provided map[interface{}][]*srcPkgElem
 var keyValues map[interface{}]map[interface{}][]*srcElem
 var sliceElements map[interface{}][]*srcElem
 var resolveSrc *src
+var unhashableProvs []*src
 
 func init() {
 	createVars()
@@ -74,25 +77,36 @@ func Reset() {
 	}
 	required = make([]*srcElem, 0)
 	resolveSrc = nil
+	unhashableProvs = []*src{}
 	createVars()
 }
 
 // ProvideSliceElement s.e.
 func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	if sliceElements[pointerToSlice] == nil {
-		sliceElements[pointerToSlice] = make([]*srcElem, 0)
+	srcElement := newSrcElem(file, line, element)
+	if isHashable(pointerToSlice) {
+		if sliceElements[pointerToSlice] == nil {
+			sliceElements[pointerToSlice] = make([]*srcElem, 0)
+		}
+		sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], srcElement)
+	} else {
+		unhashableProvs = append(unhashableProvs, srcElement.src)
 	}
-	sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], newSrcElem(file, line, element))
 }
 
 // ProvideKeyValue s.e.
 func ProvideKeyValue(pointerToMap interface{}, key interface{}, value interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	if keyValues[pointerToMap] == nil {
-		keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
+	srcElement := newSrcElem(file, line, value)
+	if isHashable(pointerToMap) {
+		if keyValues[pointerToMap] == nil {
+			keyValues[pointerToMap] = make(map[interface{}][]*srcElem)
+		}
+		keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], srcElement)
+	} else {
+		unhashableProvs = append(unhashableProvs, srcElement.src)
 	}
-	keyValues[pointerToMap][key] = append(keyValues[pointerToMap][key], newSrcElem(file, line, value))
 }
 
 // Provide registers implementation of ref type
@@ -100,7 +114,12 @@ func Provide(ref interface{}, funcImplementation interface{}) {
 	pc, file, line, _ := runtime.Caller(1)
 	nameFull := runtime.FuncForPC(pc).Name()
 	pkgName := nameFull[:strings.LastIndex(nameFull, ".")]
-	provided[ref] = append(provided[ref], newSrcPkgElem(file, line, pkgName, funcImplementation))
+	srcElem := newSrcPkgElem(file, line, pkgName, funcImplementation)
+	if isHashable(ref) {
+		provided[ref] = append(provided[ref], srcElem)
+	} else {
+		unhashableProvs = append(unhashableProvs, srcElem.src)
+	}
 }
 
 // Require registers dep
@@ -110,15 +129,13 @@ func Require(toInject interface{}) {
 }
 
 // ResolveAll all deps
-func ResolveAll() Errors {
-	errs := validate()
-	if len(errs) > 0 {
+func ResolveAll() errs.Errors {
+	if errs := validate(); errs != nil {
 		return errs
 	}
 
 	for target, provVar := range provided {
-		targetValue := reflect.ValueOf(target).Elem()
-		if targetValue.IsNil() {
+		if targetValue := reflect.ValueOf(target).Elem(); targetValue.IsNil() {
 			targetValue.Set(reflect.ValueOf(provVar[0].elem))
 		}
 	}
@@ -184,15 +201,35 @@ func isSlice(kind reflect.Kind) bool {
 	return kind == reflect.Array || kind == reflect.Slice
 }
 
-func validate() Errors {
-	var errs Errors
+func isHashable(intf interface{}) bool {
+	t := reflect.TypeOf(intf).Kind()
+	return t < reflect.Array || t == reflect.Ptr || t == reflect.UnsafePointer
+}
+
+func validate() (errs errs.Errors) {
 	if resolveSrc != nil {
-		return []error{&EAlreadyResolved{resolveSrc}}
+		return errs.AddE(&EAlreadyResolved{resolveSrc})
 	}
 
 	requiredPackages := make(map[string]bool)
 
+	if len(unhashableProvs) > 0 {
+		for _, unhashableProvsSrc := range unhashableProvs {
+			errs = errs.AddE(&EProvisionForNonAssignable{unhashableProvsSrc})
+		}
+		return errs
+	}
+
 	for _, req := range required {
+
+		v := reflect.ValueOf(req.elem)
+
+		if v.Kind() != reflect.Ptr || !v.Elem().CanSet() {
+			errs = append(errs, &ENonAssignableRequirement{req})
+			if !v.CanSet() {
+				return errs // req.elem is unhashable here
+			}
+		}
 
 		impls := provided[req.elem]
 
@@ -202,11 +239,6 @@ func validate() Errors {
 
 		if len(impls) > 1 {
 			errs = append(errs, &EMultipleFuncImplementations{req, impls})
-		}
-
-		v := reflect.ValueOf(req.elem).Elem()
-		if !v.CanSet() {
-			errs = append(errs, &ENonAssignableRequirement{req})
 		}
 
 		reqType := reflect.TypeOf(req.elem).Elem()
