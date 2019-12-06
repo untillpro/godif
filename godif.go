@@ -202,8 +202,8 @@ func isSlice(kind reflect.Kind) bool {
 }
 
 func isHashable(intf interface{}) bool {
-	t := reflect.TypeOf(intf).Kind()
-	return t < reflect.Array || t == reflect.Ptr || t == reflect.UnsafePointer
+	k := reflect.TypeOf(intf).Kind()
+	return k < reflect.Array || k == reflect.Ptr || k == reflect.UnsafePointer
 }
 
 func validate() (errs errs.Errors) {
@@ -215,7 +215,7 @@ func validate() (errs errs.Errors) {
 
 	if len(unhashableProvs) > 0 {
 		for _, unhashableProvsSrc := range unhashableProvs {
-			errs = errs.AddE(&EProvisionForNonAssignable{unhashableProvsSrc})
+			errs.AddE(&EProvisionForNonAssignable{unhashableProvsSrc})
 		}
 		return errs
 	}
@@ -225,7 +225,7 @@ func validate() (errs errs.Errors) {
 		v := reflect.ValueOf(req.elem)
 
 		if v.Kind() != reflect.Ptr || !v.Elem().CanSet() {
-			errs = append(errs, &ENonAssignableRequirement{req})
+			errs.AddE(&ENonAssignableRequirement{req})
 			if !v.CanSet() {
 				return errs // req.elem is unhashable here
 			}
@@ -234,11 +234,11 @@ func validate() (errs errs.Errors) {
 		impls := provided[req.elem]
 
 		if nil == impls {
-			errs = append(errs, &EImplementationNotProvided{req, nil})
+			errs.AddE(&EImplementationNotProvided{req, nil})
 		}
 
 		if len(impls) > 1 {
-			errs = append(errs, &EMultipleFuncImplementations{req, impls})
+			errs.AddE(&EMultipleFuncImplementations{req, impls})
 		}
 
 		reqType := reflect.TypeOf(req.elem).Elem()
@@ -247,7 +247,7 @@ func validate() (errs errs.Errors) {
 			requiredPackages[impl.pkg] = true
 			implType := reflect.TypeOf(impl.elem)
 			if !implType.AssignableTo(reqType) {
-				errs = append(errs, &EIncompatibleTypesFunc{req, impl})
+				errs.AddE(&EIncompatibleTypesFunc{req, impl})
 			}
 		}
 	}
@@ -260,12 +260,12 @@ func validate() (errs errs.Errors) {
 		if targetMapValue.IsNil() {
 			if impl == nil {
 				keys := reflect.ValueOf(kvToAppend).MapKeys()
-				errs = append(errs, &EImplementationNotProvided{kvToAppend[keys[0].Interface()][0], targetMap})
+				errs.AddE(&EImplementationNotProvided{kvToAppend[keys[0].Interface()][0], targetMap})
 				continue
 			}
 		} else {
 			if impl != nil {
-				errs = append(errs, &EImplementationProvidedForNonNil{impl[0]})
+				errs.AddE(&EImplementationProvidedForNonNil{impl[0]})
 				continue
 			}
 		}
@@ -281,20 +281,20 @@ func validate() (errs errs.Errors) {
 						provType = provType.Elem()
 					}
 					if !provType.AssignableTo(reqMapValueSliceElementType) {
-						errs = append(errs, &EIncompatibleTypesStorageValue{targetMapType, provElement})
+						errs.AddE(&EIncompatibleTypesStorageValue{targetMapType, provElement})
 					}
 				}
 			} else {
 				if len(v) > 1 {
-					errs = append(errs, &EMultipleValues{v})
+					errs.AddE(&EMultipleValues{v})
 				} else {
 					vType := reflect.TypeOf(v[0].elem)
 					if !vType.AssignableTo(targetMapValueType) {
-						errs = append(errs, &EIncompatibleTypesStorageValue{targetMapType, v[0]})
+						errs.AddE(&EIncompatibleTypesStorageValue{targetMapType, v[0]})
 					}
 					kType := reflect.TypeOf(k)
 					if !kType.AssignableTo(targetMapKeyType) {
-						errs = append(errs, &EIncompatibleTypesStorageKey{targetMapType, newSrcElem(v[0].file, v[0].line, k)})
+						errs.AddE(&EIncompatibleTypesStorageKey{targetMapType, newSrcElem(v[0].file, v[0].line, k)})
 					}
 				}
 			}
@@ -306,7 +306,7 @@ func validate() (errs errs.Errors) {
 		targetSliceValue := reflect.ValueOf(targetSlice).Elem()
 		impl := provided[targetSlice]
 		if targetSliceValue.IsNil() && impl == nil {
-			errs = append(errs, &EImplementationNotProvided{elementsToAppend[0], targetSlice})
+			errs.AddE(&EImplementationNotProvided{elementsToAppend[0], targetSlice})
 			continue
 		}
 		for _, v := range elementsToAppend {
@@ -316,7 +316,7 @@ func validate() (errs errs.Errors) {
 				vType = vType.Elem()
 			}
 			if !vType.AssignableTo(targetSliceType.Elem()) {
-				errs = append(errs, &EIncompatibleTypesStorageValue{targetSliceType, v})
+				errs.AddE(&EIncompatibleTypesStorageValue{targetSliceType, v})
 			}
 		}
 	}
@@ -326,7 +326,7 @@ func validate() (errs errs.Errors) {
 	for provVar, provSrcs := range provided {
 		provKind := reflect.TypeOf(provVar).Elem().Kind()
 		if provKind != reflect.Func && len(provSrcs) > 1 {
-			errs = append(errs, &EMultipleStorageImplementations{provSrcs})
+			errs.AddE(&EMultipleStorageImplementations{provSrcs})
 			continue
 		}
 		provType := reflect.TypeOf(provSrcs[0].elem)
@@ -336,8 +336,8 @@ func validate() (errs errs.Errors) {
 		switch targetKind {
 		case reflect.Func:
 			if _, required := requiredPackages[provSrcs[0].pkg]; !required {
-				if _, appended := pkgNotUsedErrorsAppended[provSrcs[0].pkg]; !appended {
-					errs = append(errs, &EPackageNotUsed{provSrcs[0].pkg})
+				if !pkgNotUsedErrorsAppended[provSrcs[0].pkg] {
+					errs.AddE(&EPackageNotUsed{provSrcs[0].pkg})
 					pkgNotUsedErrorsAppended[provSrcs[0].pkg] = true
 				}
 			}
@@ -345,11 +345,11 @@ func validate() (errs errs.Errors) {
 			if isSlice(targetKind) {
 				targetSliceValue := reflect.ValueOf(provVar).Elem()
 				if !targetSliceValue.IsNil() {
-					errs = append(errs, &EImplementationProvidedForNonNil{provSrcs[0]})
+					errs.AddE(&EImplementationProvidedForNonNil{provSrcs[0]})
 				}
 			}
 			if !provType.AssignableTo(targetType) {
-				errs = append(errs, &EIncompatibleTypesStorageImpl{targetType, provSrcs[0].srcElem})
+				errs.AddE(&EIncompatibleTypesStorageImpl{targetType, provSrcs[0].srcElem})
 			}
 		}
 	}
