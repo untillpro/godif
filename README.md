@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/untillpro/godif/branch/master/graph/badge.svg)](https://codecov.io/gh/untillpro/godif)
+
 # godif
 
 Go dependency injection for functions (and not only...)
