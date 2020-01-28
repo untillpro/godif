@@ -30,12 +30,14 @@ type srcPkgElem struct {
 	pkg string
 }
 
-var required []*srcElem
-var provided map[interface{}][]*srcPkgElem
-var keyValues map[interface{}]map[interface{}][]*srcElem
-var sliceElements map[interface{}][]*srcElem
-var resolveSrc *src
-var unhashableProvs []*src
+var (
+	required        []*srcElem
+	provided        map[interface{}][]*srcPkgElem
+	keyValues       map[interface{}]map[interface{}][]*srcElem
+	sliceElements   map[interface{}][]*srcElem
+	resolveSrc      *src
+	unhashableProvs []*src
+)
 
 func init() {
 	createVars()
@@ -86,9 +88,6 @@ func ProvideSliceElement(pointerToSlice interface{}, element interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	srcElement := newSrcElem(file, line, element)
 	if isHashable(pointerToSlice) {
-		if sliceElements[pointerToSlice] == nil {
-			sliceElements[pointerToSlice] = make([]*srcElem, 0)
-		}
 		sliceElements[pointerToSlice] = append(sliceElements[pointerToSlice], srcElement)
 	} else {
 		unhashableProvs = append(unhashableProvs, srcElement.src)
@@ -255,7 +254,7 @@ func validate() (errs errs.Errors) {
 	for targetMap, kvToAppend := range keyValues {
 		targetMapType := reflect.TypeOf(targetMap).Elem()
 		targetMapValue := reflect.ValueOf(targetMap).Elem()
-		targetMapKeyType := reflect.TypeOf(targetMap).Elem().Key()
+		targetMapKeyType := targetMapType.Key()
 		impl := provided[targetMap]
 		if targetMapValue.IsNil() {
 			if impl == nil {
