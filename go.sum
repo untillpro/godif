@@ -19,11 +19,11 @@ github.com/untillpro/gochips v1.11.0 h1:gEsB4g4Yu3iu8R2hAIM7iOg94d1CZRywg7vXVj9m
 github.com/untillpro/gochips v1.11.0/go.mod h1:us8QSJtQx+8SiWFqh2oAT7UMzhF73t21p3WFGn6Apao=
 github.com/untillpro/gochips v1.12.0 h1:dqpXSAlg8YanktfK49GBAsZEjL3cwrXQ6xDAFOF79uU=
 github.com/untillpro/gochips v1.12.0/go.mod h1:us8QSJtQx+8SiWFqh2oAT7UMzhF73t21p3WFGn6Apao=
+github.com/untillpro/gochips v1.12.1-0.20191205115612-9cd10d0ac2b3 h1:6FcNUgKOtK6UqrjFGlW80WfrwgLjZPBdpUadFkw3mRw=
+github.com/untillpro/gochips v1.12.1-0.20191205115612-9cd10d0ac2b3/go.mod h1:us8QSJtQx+8SiWFqh2oAT7UMzhF73t21p3WFGn6Apao=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.6 h1:97YCGUei5WVbkKfogoJQsLwUJ17cWvpLrgNvlcbxikE=
 gopkg.in/yaml.v2 v2.2.6/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
-gopkg.in/yaml.v2 v2.2.7 h1:VUgggvou5XRW9mHwD/yXxIYSMtY0zoKQf/v226p2nyo=
-gopkg.in/yaml.v2 v2.2.7/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=

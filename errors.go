@@ -155,5 +155,5 @@ func (e *EAlreadyResolved) Error() string {
 }
 
 func (e *EProvisionForNonAssignable) Error() string {
-	return fmt.Sprintf("Non-assignable var is provided on Provide() at %s:%d", e.provisionPlace.file, e.provisionPlace.line)
+	return fmt.Sprintf("Non-assignable var is provided at %s:%d. Use pointers to target on Require() and Provide()", e.provisionPlace.file, e.provisionPlace.line)
 }
