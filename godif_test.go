@@ -292,7 +292,7 @@ func TestPackageUsedIfSomethigRequired(t *testing.T) {
 		t.Fatal()
 	}
 	assert.NotNil(t, injected1)
-	assert.NotNil(t, injected2)
+	assert.Nil(t, injected2) // not required
 }
 
 func TestPackageNotUsedIfNothingRequired(t *testing.T) {
@@ -323,6 +323,7 @@ func TestDataInject(t *testing.T) {
 	Reset()
 	var injected map[string]int
 	Provide(&injected, make(map[string]int))
+	Require(&injected)
 
 	errs := ResolveAll()
 	if errs != nil {
@@ -350,6 +351,9 @@ func TestProvideExtensionMapBasic(t *testing.T) {
 	Provide(&bucketDefsPtr, map[string]*bucketDef{})
 	Provide(&bucketDefs, map[string]bucketDef{})
 	Provide(&bucketDefsByKey, map[key]bucketDef{})
+	Require(&bucketDefsPtr)
+	Require(&bucketDefs)
+	Require(&bucketDefsByKey)
 
 	var bucketServicePtr = &bucketDef{Value: "val"}
 	var bucketService = bucketDef{Value: "val"}
@@ -586,6 +590,9 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 	Provide(&mySlice, make([]string, 0))
 	Provide(&bucketDefs, make([]bucketDef, 0))
 	Provide(&bucketDefsPtr, make([]*bucketDef, 0))
+	Require(&mySlice)
+	Require(&bucketDefs)
+	Require(&bucketDefsPtr)
 
 	var bucketServicePtr = &bucketDef{Value: "val"}
 	var bucketService = bucketDef{Value: "val"}

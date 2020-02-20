@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"runtime/debug"
 
 	"github.com/untillpro/godif"
 )
@@ -85,7 +86,7 @@ func Start(startingCtx context.Context, servicesToStart []IService, verbose bool
 	defer func() {
 		if r := recover(); r != nil {
 			if verbose {
-				logln(fmt.Sprintf("Service paniced: %v: %v", reflect.TypeOf(startingService), r))
+				logln(fmt.Sprintf("Service paniced: %v: %v\n%s", reflect.TypeOf(startingService), r, string(debug.Stack())))
 			}
 			err = &EPanic{PanicData: r, PanicedService: startingService}
 		}

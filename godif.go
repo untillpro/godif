@@ -134,6 +134,9 @@ func ResolveAll() errs.Errors {
 	}
 
 	for target, provVar := range provided {
+		if !targetRequired(target) {
+			continue
+		}
 		if targetValue := reflect.ValueOf(target).Elem(); targetValue.IsNil() {
 			targetValue.Set(reflect.ValueOf(provVar[0].elem))
 		}
@@ -194,6 +197,15 @@ func ResolveAll() errs.Errors {
 	resolveSrc = &src{file, line}
 
 	return nil
+}
+
+func targetRequired(target interface{}) bool {
+	for _, elem := range required {
+		if elem.elem == target {
+			return true
+		}
+	}
+	return false
 }
 
 func isSlice(kind reflect.Kind) bool {
