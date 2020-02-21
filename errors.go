@@ -37,7 +37,7 @@ type EImplementationProvidedForNonNil struct {
 
 // ENonAssignableRequirement error occurs if non-assignable (e.g. not variable or non-ptr) requirement is declared
 type ENonAssignableRequirement struct {
-	req *srcElem
+	req *src
 }
 
 // EIncompatibleTypesFunc error occurs if type of a requirement (func) is incompatible to provided implementation

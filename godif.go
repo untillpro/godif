@@ -31,12 +31,13 @@ type srcPkgElem struct {
 }
 
 var (
-	required        []*srcElem
+	required        map[interface{}]*srcElem
 	provided        map[interface{}][]*srcPkgElem
 	keyValues       map[interface{}]map[interface{}][]*srcElem
 	sliceElements   map[interface{}][]*srcElem
 	resolveSrc      *src
 	unhashableProvs []*src
+	unhashableReqs  []*src
 )
 
 func init() {
@@ -69,6 +70,13 @@ func Reset() {
 		}
 	}
 	for p := range provided {
+		if _, ok := required[p]; !ok {
+			if _, ok := keyValues[p]; !ok {
+				if _, ok := sliceElements[p]; !ok {
+					continue
+				}
+			}
+		}
 		v := reflect.ValueOf(p)
 		if v.Kind() == reflect.Ptr {
 			v = v.Elem()
@@ -77,9 +85,10 @@ func Reset() {
 			}
 		}
 	}
-	required = make([]*srcElem, 0)
+	required = map[interface{}]*srcElem{}
 	resolveSrc = nil
 	unhashableProvs = []*src{}
+	unhashableReqs = []*src{}
 	createVars()
 }
 
@@ -124,7 +133,11 @@ func Provide(ref interface{}, funcImplementation interface{}) {
 // Require registers dep
 func Require(toInject interface{}) {
 	_, file, line, _ := runtime.Caller(1)
-	required = append(required, newSrcElem(file, line, toInject))
+	if isHashable(toInject) {
+		required[toInject] = newSrcElem(file, line, toInject)
+	} else {
+		unhashableReqs = append(unhashableReqs, &src{file, line})
+	}
 }
 
 // ResolveAll all deps
@@ -134,8 +147,13 @@ func ResolveAll() errs.Errors {
 	}
 
 	for target, provVar := range provided {
-		if !targetRequired(target) {
-			continue
+		// implementation and key-value provided -> consider implicitly required. Will initialize.
+		if _, ok := required[target]; !ok {
+			if _, ok := keyValues[target]; !ok {
+				if _, ok := sliceElements[target]; !ok {
+					continue
+				}
+			}
 		}
 		if targetValue := reflect.ValueOf(target).Elem(); targetValue.IsNil() {
 			targetValue.Set(reflect.ValueOf(provVar[0].elem))
@@ -199,15 +217,6 @@ func ResolveAll() errs.Errors {
 	return nil
 }
 
-func targetRequired(target interface{}) bool {
-	for _, elem := range required {
-		if elem.elem == target {
-			return true
-		}
-	}
-	return false
-}
-
 func isSlice(kind reflect.Kind) bool {
 	return kind == reflect.Array || kind == reflect.Slice
 }
@@ -231,17 +240,14 @@ func validate() (errs errs.Errors) {
 		return errs
 	}
 
-	for _, req := range required {
-
-		v := reflect.ValueOf(req.elem)
-
-		if v.Kind() != reflect.Ptr || !v.Elem().CanSet() {
-			errs.AddE(&ENonAssignableRequirement{req})
-			if !v.CanSet() {
-				return errs // req.elem is unhashable here
-			}
+	if len(unhashableReqs) > 0 {
+		for _, unhashableReqSrc := range unhashableReqs {
+			errs.AddE(&ENonAssignableRequirement{unhashableReqSrc})
 		}
+		return errs
+	}
 
+	for _, req := range required {
 		impls := provided[req.elem]
 
 		if nil == impls {
@@ -269,8 +275,8 @@ func validate() (errs errs.Errors) {
 		targetMapKeyType := targetMapType.Key()
 		impl := provided[targetMap]
 		if targetMapValue.IsNil() {
+			keys := reflect.ValueOf(kvToAppend).MapKeys()
 			if impl == nil {
-				keys := reflect.ValueOf(kvToAppend).MapKeys()
 				errs.AddE(&EImplementationNotProvided{kvToAppend[keys[0].Interface()][0], targetMap})
 				continue
 			}
@@ -314,12 +320,6 @@ func validate() (errs errs.Errors) {
 
 	for targetSlice, elementsToAppend := range sliceElements {
 		targetSliceType := reflect.TypeOf(targetSlice).Elem()
-		targetSliceValue := reflect.ValueOf(targetSlice).Elem()
-		impl := provided[targetSlice]
-		if targetSliceValue.IsNil() && impl == nil {
-			errs.AddE(&EImplementationNotProvided{elementsToAppend[0], targetSlice})
-			continue
-		}
 		for _, v := range elementsToAppend {
 			vType := reflect.TypeOf(v.elem)
 			vKind := vType.Kind()

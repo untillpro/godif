@@ -351,12 +351,11 @@ func TestProvideExtensionMapBasic(t *testing.T) {
 	Provide(&bucketDefsPtr, map[string]*bucketDef{})
 	Provide(&bucketDefs, map[string]bucketDef{})
 	Provide(&bucketDefsByKey, map[key]bucketDef{})
-	Require(&bucketDefsPtr)
-	Require(&bucketDefs)
-	Require(&bucketDefsByKey)
 
 	var bucketServicePtr = &bucketDef{Value: "val"}
 	var bucketService = bucketDef{Value: "val"}
+
+	// ProvideKeyValue() and Provide() called -> consider implicitly required
 	ProvideKeyValue(&initedMap, "str", 1)
 	ProvideKeyValue(&bucketDefs, "key", bucketService)
 	ProvideKeyValue(&bucketDefsPtr, "key", bucketServicePtr)
@@ -379,6 +378,14 @@ func TestProvideExtensionMapBasic(t *testing.T) {
 	assert.Nil(bucketDefs)
 	assert.Nil(bucketDefsByKey)
 	assert.NotNil(initedMap)
+
+	// test provided but no data provided -> not required -> no implementation
+	Provide(&bucketDefsPtr, map[string]*bucketDef{})
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
+	assert.Nil(bucketDefsPtr)
 }
 
 func TestProvideExtensionMapErrorOnNoProvideForNil(t *testing.T) {
@@ -555,7 +562,6 @@ func TestProvideExtensionMapErrorOnMultipleValuesPerKey(t *testing.T) {
 	var bucketDefs map[string]*bucketDef
 
 	Provide(&bucketDefs, map[string]*bucketDef{})
-	Require(&bucketDefs)
 	_, implFileF, implLineF, _ := runtime.Caller(0)
 	ProvideKeyValue(&bucketDefs, "key", &bucketDef{"val1"})
 	_, implFileF2, implLineF2, _ := runtime.Caller(0)
@@ -586,16 +592,10 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 	var mySlice []string
 	var bucketDefs []bucketDef
 	var bucketDefsPtr []*bucketDef
-
-	Provide(&mySlice, make([]string, 0))
-	Provide(&bucketDefs, make([]bucketDef, 0))
-	Provide(&bucketDefsPtr, make([]*bucketDef, 0))
-	Require(&mySlice)
-	Require(&bucketDefs)
-	Require(&bucketDefsPtr)
-
 	var bucketServicePtr = &bucketDef{Value: "val"}
 	var bucketService = bucketDef{Value: "val"}
+
+	// implementation is not equired for nil slices
 	ProvideSliceElement(&initedSlice, 43)
 	ProvideSliceElement(&initedSlice, []int{44})
 	ProvideSliceElement(&mySlice, "str1")
@@ -624,25 +624,58 @@ func TestProvideExtensionSliceBasic(t *testing.T) {
 	assert.Equal("val", bucketDefsPtr[0].Value)
 	assert.Equal("val", bucketDefsPtr[1].Value)
 
+	// non-provided slices are not nilled on reset
+	Reset()
+	assert.NotNil(mySlice)
+	assert.NotNil(bucketDefs)
+	assert.NotNil(bucketDefsPtr)
+	assert.NotNil(initedSlice)
+
+	// provided not required slices are nilled on reset
+	mySlice = nil
+	bucketDefs = nil
+	bucketDefsPtr = nil
+	Provide(&mySlice, make([]string, 0))
+	Provide(&bucketDefs, make([]bucketDef, 0))
+	Provide(&bucketDefsPtr, make([]*bucketDef, 0))
+	ProvideSliceElement(&initedSlice, 43)
+	ProvideSliceElement(&mySlice, "str1")
+	ProvideSliceElement(&bucketDefs, bucketService)
+	ProvideSliceElement(&bucketDefsPtr, bucketServicePtr)
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
+	}
 	Reset()
 	assert.Nil(mySlice)
 	assert.Nil(bucketDefs)
 	assert.Nil(bucketDefsPtr)
 	assert.NotNil(initedSlice)
-}
 
-func TestProvideExtensionSliceErrorOnNoProvided(t *testing.T) {
-	Reset()
-	var mySlice []string
-
-	ProvideSliceElement(&mySlice, "str")
-
-	errs := ResolveAll()
-	if _, ok := errs[0].(*EImplementationNotProvided); ok && len(errs) == 1 {
-		fmt.Println(errs)
-	} else {
-		t.Fatal()
+	// provided required slices are nilled on reset
+	mySlice = nil
+	bucketDefs = nil
+	bucketDefsPtr = nil
+	Provide(&mySlice, make([]string, 0))
+	Provide(&bucketDefs, make([]bucketDef, 0))
+	Provide(&bucketDefsPtr, make([]*bucketDef, 0))
+	Require(&mySlice)
+	Require(&bucketDefs)
+	Require(&bucketDefsPtr)
+	ProvideSliceElement(&initedSlice, 43)
+	ProvideSliceElement(&mySlice, "str1")
+	ProvideSliceElement(&bucketDefs, bucketService)
+	ProvideSliceElement(&bucketDefsPtr, bucketServicePtr)
+	errs = ResolveAll()
+	if errs != nil {
+		t.Fatal(errs)
 	}
+	Reset()
+	assert.Nil(mySlice)
+	assert.Nil(bucketDefs)
+	assert.Nil(bucketDefsPtr)
+	assert.NotNil(initedSlice)
+
 }
 
 func TestProvideExtensionSliceErrorOnProvideForNonNil(t *testing.T) {
@@ -742,15 +775,10 @@ func TestProvideExtensionMapAppendSlice(t *testing.T) {
 	var bucketService = bucketDef{Value: "val"}
 
 	Provide(&intMap, map[string][]int{})
-	Require(&intMap)
 	Provide(&intMapPtr, map[string][]*int{})
-	Require(&intMapPtr)
 	Provide(&bucketDefsPtr, map[string][]*bucketDef{})
-	Require(&bucketDefsPtr)
 	Provide(&bucketDefs, map[string][]bucketDef{})
-	Require(&bucketDefs)
 	Provide(&bucketDefsByKey, map[key][]bucketDef{})
-	Require(&bucketDefsByKey)
 	inited["tmp"] = []int{42}
 
 	val1 := 3

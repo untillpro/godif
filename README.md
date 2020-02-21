@@ -16,36 +16,36 @@ Go dependency injection for functions (and not only...)
 - Register to be injected: `godif.Require(&toInject)`
 - Provide implementation: `godif.Provide(&toInject, f)`
 - Resolve: `godif.ResolveAll()`
+  - Non-assignable var provided on `Require()` or `Provide()` call -> error, further validation is skipped
   - Incompatible types -> error
   - More than one implementations provided -> error
   - No implementation -> error
   - Something provided from a package but nothing is required for the package -> error (package is not used)
-  - Non-assignable var provided on `Require()` or `Provide()` call -> error, further validation is skipped
+  - Not required -> no error, no implementation
 
 
 ## Provide key-value
 
 - Declare: `var MyMap map[string]int`
-- Require skipped, no error
 - Implement
   - Manually: `MyMap = map[string]int{}`
   - Provide implementation: `godif.Provide(&MyMap, map[string]int{})`
 - Provide data: `godif.ProvideKeyValue(&MyMap, "key1", 1)`
 - Resolve: `godif.ResolveAll()`
+  - Non-assignable var provided or `ProvideKeyValue()` call -> error, further validation is skipped
   - Data provided but not implemented -> error
+  - Implementation provided but no data provided -> no error, assume not required -> no implementation
   - Use `godif.Provide()` if implemented manually -> error 
   - If implementation provided
     - Multiple implementations -> error
     - Non-map or map of incompatible key or value type -> error
   - Multiple values per key -> error
   - Key or value of different types provided -> error
-  - Non-assignable var provided or `ProvideKeyValue()` call -> error, further validation is skipped
 
 
 ## Provide key-slice
 
 - Declare: `var MyMap map[string][]int`
-- Require skipped, no error
 - Implement
   - Manually: `MyMap = map[string][]int{}`
   - Provide implementation: `godif.Provide(&MyMap, map[string][]int{})`
@@ -56,19 +56,20 @@ Go dependency injection for functions (and not only...)
   - `godif.ProvideKeyValue(&MyMap, "key1", 2)`
   - `godif.ProvideKeyValue(&MyMap, "key1", []int{3, 4})`
 - Resolve: `godif.ResolveAll()`
+  - Non-assignable var provided on `ProvideKeyValue()` call -> error, further validation is skipped
   - Data provided but not implemented -> error
   - Use `godif.Provide()` if implemented manually -> error 
   - If implementation provided
     - Multiple implementations -> error
     - Slice of incompatible element type -> error
-  - Non-assignable var provided on `ProvideKeyValue()` call -> error, further validation is skipped
+  - Data and implementation are provided but implementation is not required -> error (target map will be nil)
 
 
 ## Provide slice element
 
 - Declare: `var MySlice []string`
-- Require skipped, no error
-- Implement
+- Require: `Require(&MySlice)`
+- Implementation for slices is not neccessary but possible:
   - Manually: `MySlice = []string{}`
   - Provide implementation: `godif.Provide(&MySlice, []string{})`
 - Add initial data if needed: `MySlice = append(MySlice, 42)`
@@ -77,14 +78,14 @@ Go dependency injection for functions (and not only...)
   - `godif.ProvideSliceElement(&MySlice, "str1")`
   - `godif.ProvideSliceElement(&MySlice, []string{"str3", "str4"})`
 - Resolve: `godif.ResolveAll()`
-  - Data provided but not implemented -> error
+  - Non-assignable var provided on `ProvideSliceElement()` call -> error, further validation is skipped
   - Use `godif.Provide()` if implemented manually -> error 
   - Multiple implementations -> error
   - Incompatible types -> error
-  - Non-assignable var provided on `ProvideSliceElement()` call -> error, further validation is skipped
 
 ## Reset all injections
 - `godif.Reset()`
-- Provided vars will be nilled
+- Provided and required vars will be nilled
+- Provided not required vars with data provided by `ProvideKeyValue()` or `ProvideSciceElement()` (assume required) will be nilled
 - Manually inited vars will be kept
 - Data injected into manually inited vars will be kept
