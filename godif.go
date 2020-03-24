@@ -41,13 +41,7 @@ var (
 )
 
 func init() {
-	createVars()
-}
-
-func createVars() {
-	provided = make(map[interface{}][]*srcPkgElem)
-	keyValues = make(map[interface{}]map[interface{}][]*srcElem)
-	sliceElements = make(map[interface{}][]*srcElem)
+	Reset()
 }
 
 func newSrcElem(file string, line int, elem interface{}) *srcElem {
@@ -85,11 +79,13 @@ func Reset() {
 			}
 		}
 	}
-	required = map[interface{}]*srcElem{}
 	resolveSrc = nil
 	unhashableProvs = []*src{}
 	unhashableReqs = []*src{}
-	createVars()
+	required = map[interface{}]*srcElem{}
+	provided = make(map[interface{}][]*srcPkgElem)
+	keyValues = make(map[interface{}]map[interface{}][]*srcElem)
+	sliceElements = make(map[interface{}][]*srcElem)
 }
 
 // ProvideSliceElement s.e.
